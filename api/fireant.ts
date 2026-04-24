@@ -14,9 +14,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     if (key === "path") return;
     if (Array.isArray(value)) {
       value.forEach((item) => queryParams.append(key, String(item)));
-      return;
-    }
-    if (value !== undefined) {
+    } else if (value !== undefined) {
       queryParams.append(key, String(value));
     }
   });

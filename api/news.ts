@@ -12,18 +12,20 @@ export default async function handler(_req: VercelRequest, res: VercelResponse) 
       const response = await axios.get(SOURCES[i], {
         timeout: 30000,
         headers: {
+          Accept: "application/json",
           "User-Agent":
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36",
-          Accept: "application/json",
         },
         maxRedirects: 5,
       });
 
       const data = response.data;
       const textPreview = typeof data === "string" ? data.trim().toLowerCase() : "";
+
       if (!data || (Array.isArray(data) && data.length === 0)) {
         throw new Error("Empty or null data");
       }
+
       if (typeof data === "string" && (textPreview.startsWith("<!doctype") || textPreview.startsWith("<html"))) {
         throw new Error("Received HTML instead of JSON");
       }

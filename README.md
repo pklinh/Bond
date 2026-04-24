@@ -1,112 +1,20 @@
-# Bond - Setup va Chay Chuong Trinh
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
+</div>
 
-Du an su dung `Vite + React + TypeScript`, co API proxy cho FireAnt.
+# Run and deploy your AI Studio app
 
-## 1) Yeu cau moi truong
+This contains everything you need to run your app locally.
 
-- Node.js 18+ (khuyen nghi Node.js 20 LTS)
-- npm di kem Node.js
+View your app in AI Studio: https://ai.studio/apps/ef90bd50-a22f-424b-a534-995358eb5ab3
 
-Kiem tra phien ban:
+## Run Locally
 
-```bash
-node -v
-npm -v
-```
+**Prerequisites:**  Node.js
 
-## 2) Cai dat dependencies
 
-Tai thu muc du an, chay:
-
-```bash
-npm install
-```
-
-Neu ban dung PowerShell va gap loi `running scripts is disabled`, dung lenh sau:
-
-```bash
-npm.cmd install
-```
-
-## 3) Cau hinh bien moi truong
-
-Du an dung token FireAnt qua bien:
-
-- `VITE_FIREANT_ACCESS_TOKEN`
-
-Buoc thuc hien:
-
-1. Tao file `.env.local` (hoac `.env`) trong thu muc goc.
-2. Them bien:
-
-```env
-VITE_FIREANT_ACCESS_TOKEN=your_token_here
-```
-
-> Co the tham khao gia tri mau trong file `.env.example`.
-
-## 4) Chay o che do development
-
-```bash
-npm run dev
-```
-
-Neu dung PowerShell va bi chan script:
-
-```bash
-npm.cmd run dev
-```
-
-Sau khi chay thanh cong, mo:
-
-- [http://localhost:3000](http://localhost:3000)
-
-## 5) Build production
-
-```bash
-npm run build
-```
-
-## 6) Preview ban build
-
-```bash
-npm run preview
-```
-
-## 7) Script co san
-
-- `npm run dev`: Chay server dev (`tsx server.ts`)
-- `npm run build`: Build frontend voi Vite
-- `npm run preview`: Preview ban build
-- `npm run lint`: Kiem tra TypeScript (`tsc --noEmit`)
-
-## 8) Deploy len Vercel
-
-Project da duoc cau hinh API serverless cho Vercel:
-
-- `/api/fireant/*`: Proxy sang `https://restv2.fireant.vn/*`
-- `/api/news`: Lay du lieu news (co fallback source)
-- `/api/health`: Health check endpoint
-
-Cau hinh can dam bao tren Vercel:
-
-- Build command: `npm run build`
-- Output directory: `dist`
-
-Sau deploy, frontend se tiep tuc goi duoc cac route `/api/...` tren cung domain Vercel.
-
-Test nhanh sau deploy:
-
-```bash
-curl https://<your-vercel-domain>/api/health
-```
-
-Ky vong ket qua:
-
-```json
-{
-  "ok": true,
-  "service": "bond-api",
-  "timestamp": "2026-01-01T00:00:00.000Z"
-}
-```
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

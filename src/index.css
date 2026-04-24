@@ -1,0 +1,44 @@
+@import "tailwindcss";
+
+@theme {
+  --color-bg-base: var(--bg-base);
+  --color-bg-surface: var(--bg-surface);
+  --color-text-base: var(--text-base);
+  --color-text-muted: var(--text-muted);
+  --color-text-highlight: var(--text-highlight);
+  --color-border-base: var(--border-base);
+}
+
+:root {
+  --bg-base: #f8f9fa;
+  --bg-surface: #ffffff;
+  --text-base: #111827;
+  --text-muted: #6b7280;
+  --text-highlight: #3634B3;
+  --border-base: #e5e7eb;
+}
+
+.dark {
+  --bg-base: #111827;
+  --bg-surface: #1f2937;
+  --text-base: #f9fafb;
+  --text-muted: #9ca3af;
+  --text-highlight: #3634B3;
+  --border-base: #374151;
+}
+
+@layer base {
+  body {
+    @apply bg-bg-base text-text-base transition-colors duration-300;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}

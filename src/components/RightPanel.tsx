@@ -228,7 +228,7 @@ export default function RightPanel({
                           setSelectedBond({
                             id: bond.id,
                             code: bond.code,
-                            enterpriseId: '',
+                            enterpriseId: bond.ticker || '',
                             term: bond.term || 'N/A',
                             interestRate: bond.interestRate,
                             listedVolume: bond.listedVolume,

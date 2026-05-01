@@ -6,6 +6,7 @@ import { formatInterestRate, formatNumber, formatDate } from '../utils/format';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
 import BondComparisonPopup from './BondComparisonPopup';
+import { fetchInternationalIssuerName, peekInternationalIssuerName } from '../utils/internationalIssuerName';
 
 interface BondDetailPopupProps {
   bond: Bond;
@@ -17,7 +18,7 @@ import { getFireantToken, cleanTokenString } from '../utils/token';
 
 export default function BondDetailPopup({ bond, enterpriseName, onClose }: BondDetailPopupProps) {
   const { effectiveTheme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isDark = effectiveTheme === 'dark';
   
   const formatTerm = (rawTerm: any) => {
@@ -30,6 +31,28 @@ export default function BondDetailPopup({ bond, enterpriseName, onClose }: BondD
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showComparison, setShowComparison] = useState(false);
+  const issuerTicker = bond.enterpriseId?.trim() ?? '';
+
+  const [intlIssuerName, setIntlIssuerName] = useState<string | undefined>();
+
+  useEffect(() => {
+    const sym = bond.enterpriseId?.trim();
+    if (language !== 'en' || !sym) {
+      setIntlIssuerName(undefined);
+      return;
+    }
+
+    const cached = peekInternationalIssuerName(sym);
+    setIntlIssuerName(cached);
+
+    let cancelled = false;
+    fetchInternationalIssuerName(sym).then((name) => {
+      if (!cancelled && name) setIntlIssuerName(name);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [language, bond.enterpriseId, bond.code]);
 
   useEffect(() => {
     // Disable scrolling on the body when the popup is open
@@ -160,9 +183,15 @@ export default function BondDetailPopup({ bond, enterpriseName, onClose }: BondD
 
   const maturityInfo = getMaturityInfo();
 
+  const issuerDisplayValue =
+    language === 'en'
+      ? intlIssuerName ??
+        (issuerTicker ? t(enterpriseName as any, issuerTicker) : t(enterpriseName as any))
+      : enterpriseName;
+
   const details = [
     { label: t('bondCode'), value: currentBond.code, icon: Activity },
-    { label: t('bondIssuer'), value: t(enterpriseName as any), icon: Briefcase },
+    { label: t('bondIssuer'), value: issuerDisplayValue, icon: Briefcase },
     { label: t('term'), value: formatTerm(currentBond.term), icon: Calendar },
     { label: t('issueDate'), value: formatDate(currentBond.issueDate), icon: Calendar },
     { label: t('maturityDate'), value: formatDate(currentBond.maturityDate), icon: Calendar },

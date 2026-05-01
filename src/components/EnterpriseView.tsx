@@ -17,6 +17,7 @@ import { getFireantToken, cleanTokenString } from '../utils/token';
 import { Settings } from 'lucide-react';
 import { getCache, setCache } from '../utils/cache';
 import { useLanguage } from '../LanguageContext';
+import { fetchInternationalIssuerName, peekInternationalIssuerName } from '../utils/internationalIssuerName';
 
 export default function EnterpriseView({ 
   selectedEnterprise, 
@@ -43,6 +44,7 @@ export default function EnterpriseView({
   const [bondInterestSort, setBondInterestSort] = useState('None');
   const [financialData, setFinancialData] = useState<any>(null);
   const [enterpriseProfile, setEnterpriseProfile] = useState<any>(null);
+  const [issuerIntlNames, setIssuerIntlNames] = useState<Record<string, string>>({});
   const [loadingFinancial, setLoadingFinancial] = useState(false);
   const bondsPerPage = 10;
   const enterprisesPerPage = 10;
@@ -379,6 +381,42 @@ export default function EnterpriseView({
 
   const totalEnterprisePages = Math.ceil(sortedEnterprises.length / enterprisesPerPage);
   const paginatedEnterprises = sortedEnterprises.slice((enterprisePage - 1) * enterprisesPerPage, enterprisePage * enterprisesPerPage);
+
+  const enterpriseTableTickersKey = `${language}|${enterprisePage}|${paginatedEnterprises.map((e) => e.ticker).join(',')}`;
+
+  useEffect(() => {
+    if (language !== 'en') return;
+
+    const tickers = paginatedEnterprises.map((e) => e.ticker).filter(Boolean);
+    if (tickers.length === 0) return;
+
+    let cancelled = false;
+
+    tickers.forEach((sym) => {
+      const cached = peekInternationalIssuerName(sym);
+      if (cached) {
+        setIssuerIntlNames((prev) => (prev[sym] === cached ? prev : { ...prev, [sym]: cached }));
+      }
+      fetchInternationalIssuerName(sym).then((name) => {
+        if (!cancelled && name) {
+          setIssuerIntlNames((prev) => (prev[sym] === name ? prev : { ...prev, [sym]: name }));
+        }
+      });
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [language, enterpriseTableTickersKey]);
+
+  const displayEnterpriseIssuerName = (enterprise: { name: string; ticker: string }) => {
+    if (language !== 'en') return t(enterprise.name as any, enterprise.ticker);
+    return (
+      issuerIntlNames[enterprise.ticker] ??
+      peekInternationalIssuerName(enterprise.ticker) ??
+      t(enterprise.name as any, enterprise.ticker)
+    );
+  };
 
   const enterpriseBonds = selectedEnterprise 
     ? (issuerBonds.length > 0 ? issuerBonds : [])
@@ -903,7 +941,7 @@ export default function EnterpriseView({
                   <tr 
                     key={bond.id} 
                     onClick={() => {
-                      setBondEnterpriseName(language === 'en' && enterpriseProfile?.internationalName ? enterpriseProfile.internationalName : selectedEnterprise.name);
+                      setBondEnterpriseName(selectedEnterprise.name);
                       setSelectedBond(bond);
                     }}
                     className={`cursor-pointer transition-colors group ${idx % 2 === 1 ? 'bg-bg-base/30' : 'bg-bg-surface'} hover:bg-indigo-50 dark:hover:bg-indigo-900/20`}
@@ -1142,7 +1180,7 @@ export default function EnterpriseView({
                   </td>
                   <td className="px-6 py-5 text-left">
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-text-base group-hover:text-text-highlight transition-colors">{t(enterprise.name as any, enterprise.ticker)}</p>
+                      <p className="text-sm font-bold text-text-base group-hover:text-text-highlight transition-colors">{displayEnterpriseIssuerName(enterprise)}</p>
                       <p className="text-[10px] font-bold text-text-muted tracking-wider group-hover:text-text-highlight transition-colors">
                         {t(enterprise.industry as any)}
                       </p>

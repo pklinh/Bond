@@ -3,6 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Mail, Lock, Eye, EyeOff, ShieldCheck, Apple, AlertCircle, User, Check, LayoutGrid, BarChart4, BellRing, ClipboardList } from 'lucide-react';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
+import { signInWithPopup } from 'firebase/auth';
+import { auth, googleProvider, db } from '../lib/firebase';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 
 interface LoginViewProps {
   onLoginSuccess: (userData: any) => void;
@@ -62,8 +65,39 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
     });
   };
 
-  const handleGoogleLogin = () => {
-    onLoginSuccess({ email: DEMO_EMAIL, name: `${t('adminUser')} (Google)` });
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  const handleGoogleLogin = async () => {
+    setIsGoogleLoading(true);
+    setError(null);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      
+      // Check if user exists in Firestore, if not create
+      const userDocRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userDocRef);
+      
+      const userData = {
+        uid: user.uid,
+        email: user.email,
+        name: user.displayName || 'Google User',
+        picture: user.photoURL,
+        isGoogleUser: true,
+        updatedAt: new Date().toISOString()
+      };
+
+      if (!userDoc.exists()) {
+        await setDoc(userDocRef, userData);
+      }
+
+      onLoginSuccess(userData);
+    } catch (err: any) {
+      console.error("Google login failed:", err);
+      setError(err.message || "Failed to sign in with Google");
+    } finally {
+      setIsGoogleLoading(false);
+    }
   };
 
   const isLogin = authMode === 'login';
@@ -71,6 +105,7 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
   return (
     <div className="h-screen flex bg-bg-base font-sans text-text-base overflow-hidden relative transition-colors">
       {/* Left side - Brand Panel (Product Introduction) */}
+
       <div className="hidden lg:flex w-1/2 flex-col justify-center items-center p-4 lg:p-6 relative overflow-hidden border-r border-border-base transition-colors">
         <div className="w-full max-w-[500px] p-6 lg:p-8 relative z-10 flex flex-col justify-between h-fit">
           <div className="relative">
@@ -329,10 +364,17 @@ export default function LoginView({ onLoginSuccess }: LoginViewProps) {
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={handleGoogleLogin}
-                className="flex items-center justify-center gap-2 py-2 border border-border-base rounded-xl hover:bg-bg-base transition-all active:scale-[0.98] transition-colors"
+                disabled={isGoogleLoading}
+                className="flex items-center justify-center gap-2 py-2 border border-border-base rounded-xl hover:bg-bg-base transition-all active:scale-[0.98] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="h-3.5 w-3.5" />
-                <span className="text-[10px] font-bold text-text-base tracking-tight transition-colors">{t('googleAuth')}</span>
+                {isGoogleLoading ? (
+                  <div className="h-3.5 w-3.5 border-2 border-[#3634B3]/20 border-t-[#3634B3] rounded-full animate-spin"></div>
+                ) : (
+                  <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" className="h-3.5 w-3.5" />
+                )}
+                <span className="text-[10px] font-bold text-text-base tracking-tight transition-colors">
+                  {isGoogleLoading ? t('signingIn') || 'Signing in...' : t('googleAuth')}
+                </span>
               </button>
               <button className="flex items-center justify-center gap-2 py-2 border border-border-base rounded-xl hover:bg-bg-base transition-all active:scale-[0.98] transition-colors">
                 <Apple className="h-3.5 w-3.5 text-text-base" />

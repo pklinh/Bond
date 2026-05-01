@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import ReactECharts from 'echarts-for-react';
 import { X, Info, Calendar, TrendingUp, Activity, Briefcase, AlertTriangle, ArrowLeftRight } from 'lucide-react';
 import { Bond } from '../types';
-import { formatInterestRate, formatNumber } from '../utils/format';
+import { formatInterestRate, formatNumber, formatDate } from '../utils/format';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
 import BondComparisonPopup from './BondComparisonPopup';
@@ -19,6 +19,13 @@ export default function BondDetailPopup({ bond, enterpriseName, onClose }: BondD
   const { effectiveTheme } = useTheme();
   const { t } = useLanguage();
   const isDark = effectiveTheme === 'dark';
+  
+  const formatTerm = (rawTerm: any) => {
+    if (!rawTerm || rawTerm === 'N/A') return 'N/A';
+    const clean = String(rawTerm).replace(/tháng|months/gi, '').trim();
+    return `${clean} ${t('monthUnit')}`;
+  };
+
   const [bondDetails, setBondDetails] = useState<Bond | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -50,9 +57,10 @@ export default function BondDetailPopup({ bond, enterpriseName, onClose }: BondD
         if (response.ok) {
           const data = await response.json();
           const detail = data.detail || {};
+          
           const mappedDetails: Bond = {
             ...bond,
-            term: detail.tenorPeriod ? `${detail.tenorPeriod} ${t('monthUnit')}` : bond.term,
+            term: detail.tenorPeriod ? formatTerm(detail.tenorPeriod) : formatTerm(bond.term),
             issueDate: detail.issueDate ? detail.issueDate.split('T')[0] : bond.issueDate,
             interestType: detail.bondRateType || detail.interestRateType || bond.interestType,
             interestRate: detail.bondRate || detail.interestRate || bond.interestRate,
@@ -154,10 +162,10 @@ export default function BondDetailPopup({ bond, enterpriseName, onClose }: BondD
 
   const details = [
     { label: t('bondCode'), value: currentBond.code, icon: Activity },
-    { label: t('bondIssuer'), value: enterpriseName, icon: Briefcase },
-    { label: t('term'), value: currentBond.term, icon: Calendar },
-    { label: t('issueDate'), value: currentBond.issueDate, icon: Calendar },
-    { label: t('maturityDate'), value: currentBond.maturityDate, icon: Calendar },
+    { label: t('bondIssuer'), value: t(enterpriseName as any), icon: Briefcase },
+    { label: t('term'), value: formatTerm(currentBond.term), icon: Calendar },
+    { label: t('issueDate'), value: formatDate(currentBond.issueDate), icon: Calendar },
+    { label: t('maturityDate'), value: formatDate(currentBond.maturityDate), icon: Calendar },
     { label: t('interestRate'), value: `${formatInterestRate(currentBond.interestRate)}%`, icon: TrendingUp },
     { label: t('interestType'), value: currentBond.interestType === 'Cố định' ? t('fixed') : (currentBond.interestType === 'Thả nổi' ? t('floating') : currentBond.interestType), icon: Info },
     { label: t('listedVolume'), value: formatNumber(currentBond.listedVolume || 0, 0), icon: Activity },

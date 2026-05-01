@@ -1,15 +1,16 @@
-import { User, ShieldCheck, History, HelpCircle, LogOut, Camera, CheckCircle2, Monitor, Smartphone, Globe, ChevronLeft, ChevronRight, ExternalLink, Clock, Sun, Moon, Bell } from 'lucide-react';
+import { User, ShieldCheck, History, HelpCircle, LogOut, Camera, CheckCircle2, Monitor, Smartphone, Globe, ChevronLeft, ChevronRight, ExternalLink, Clock, Sun, Moon, Bell, AlertCircle } from 'lucide-react';
 import { useState, useEffect, useRef } from 'react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
+import SentinelFooter from './SentinelFooter';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-type ProfileTab = 'info' | 'security' | 'notifications' | 'history';
+type ProfileTab = 'info' | 'security' | 'history';
 
 interface ProfileViewProps {
   onLogout: () => void;
@@ -33,7 +34,6 @@ export default function ProfileView({ onLogout, user, onUpdateUser }: ProfileVie
   const menuItems = [
     { id: 'info', label: t('personalInfo'), icon: User },
     { id: 'security', label: t('securitySettings'), icon: ShieldCheck },
-    { id: 'notifications', label: t('notificationSettings'), icon: Bell },
     { id: 'history', label: t('activityLog'), icon: History },
   ];
 
@@ -79,7 +79,6 @@ export default function ProfileView({ onLogout, user, onUpdateUser }: ProfileVie
         <div className="max-w-5xl">
           {activeTab === 'info' && <PersonalInfoView user={user} onUpdateUser={onUpdateUser} />}
           {activeTab === 'security' && <SecuritySettingsView user={user} onUpdateUser={onUpdateUser} />}
-          {activeTab === 'notifications' && <NotificationsSettingsView />}
           {activeTab === 'history' && <ActivityLogView />}
         </div>
       </div>
@@ -87,43 +86,11 @@ export default function ProfileView({ onLogout, user, onUpdateUser }: ProfileVie
   );
 }
 
-function ProfileFooter() {
-  const { t } = useLanguage();
-  return (
-    <div className="mt-12 pt-12 border-t border-border-base transition-colors">
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-        <div className="col-span-2">
-          <h4 className="text-sm font-bold text-[#3634B3] uppercase tracking-wider mb-4 transition-colors">FIREANT</h4>
-          <p className="text-sm text-text-muted leading-relaxed whitespace-pre-line transition-colors">
-            {t('platformDesc1')}{"\n"}
-            {t('platformDesc2')}{"\n"}
-            {t('platformDesc3')}
-          </p>
-        </div>
-        <div>
-          <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4 transition-colors">{t('support')}</h4>
-          <ul className="text-sm text-text-muted space-y-2">
-            <li className="hover:text-[#3634B3] cursor-pointer transition-colors">{t('helpCenter')}</li>
-            <li className="hover:text-[#3634B3] cursor-pointer transition-colors">{t('systemStatus')}</li>
-            <li className="hover:text-[#3634B3] cursor-pointer transition-colors">{t('apiDocs')}</li>
-          </ul>
-        </div>
-        <div>
-          <h4 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4 transition-colors">{t('compliance')}</h4>
-          <ul className="text-sm text-text-muted space-y-2">
-            <li className="hover:text-[#3634B3] cursor-pointer transition-colors">{t('privacyPolicy')}</li>
-            <li className="hover:text-[#3634B3] cursor-pointer transition-colors">{t('dataSecurity')}</li>
-            <li className="hover:text-[#3634B3] cursor-pointer transition-colors">{t('termsOfService')}</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (data: any) => void }) {
   const { theme, setTheme } = useTheme();
   const { t } = useLanguage();
+  const isGoogleUser = user?.isGoogleUser === true;
   const [formData, setFormData] = useState({
     name: user?.name || t('adminUser'),
     email: user?.email || "admin@test.com",
@@ -133,6 +100,7 @@ function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (da
   const [saveSuccess, setSaveSuccess] = useState(false);
 
   const handleSave = () => {
+    if (isGoogleUser) return;
     setIsSaving(true);
     // Simulate API delay
     setTimeout(() => {
@@ -151,19 +119,34 @@ function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (da
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
       <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('personalInfo')}</h1>
 
+      {isGoogleUser && (
+        <div className="mb-6 p-4 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900 rounded-xl flex items-center gap-3 text-[#3634B3] text-xs font-bold transition-colors">
+          <ShieldCheck className="h-5 w-5" />
+          <span>Tài khoản Google đang được sử dụng. Thông tin cá nhân được đồng bộ từ Google và không thể thay đổi tại đây.</span>
+        </div>
+      )}
+
       <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 transition-colors">
         <div className="mb-6">
           <div className="flex flex-col md:flex-row gap-12">
             <div className="flex flex-col items-center gap-4">
               <div className="h-48 w-48 rounded-xl bg-bg-base/50 flex items-center justify-center border-2 border-dashed border-border-base relative group overflow-hidden transition-colors">
-                <User className="h-20 w-20 text-text-muted/40" />
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Camera className="h-8 w-8 text-white" />
-                </div>
+                {user?.picture ? (
+                  <img src={user.picture} alt={user.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <User className="h-20 w-20 text-text-muted/40" />
+                )}
+                {!isGoogleUser && (
+                  <div className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Camera className="h-8 w-8 text-white" />
+                  </div>
+                )}
               </div>
-              <button className="flex items-center gap-2 px-6 py-2 bg-bg-base hover:bg-bg-base/80 text-text-base text-xs font-bold rounded-lg transition-colors uppercase tracking-wider">
-                {t('uploadNewPhoto')}
-              </button>
+              {!isGoogleUser && (
+                <button className="flex items-center gap-2 px-6 py-2 bg-bg-base hover:bg-bg-base/80 text-text-base text-xs font-bold rounded-lg transition-colors uppercase tracking-wider">
+                  {t('uploadNewPhoto')}
+                </button>
+              )}
               <p className="text-[10px] text-text-muted transition-colors">{t('uploadSizeLimit')}</p>
             </div>
 
@@ -174,8 +157,12 @@ function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (da
                   <input 
                     type="text" 
                     value={formData.name}
+                    disabled={isGoogleUser}
                     onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-bg-base border border-border-base rounded-lg text-sm font-medium text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:focus:ring-indigo-400/20 focus:border-indigo-600 dark:focus:border-indigo-400 transition-all outline-none"
+                    className={cn(
+                      "w-full px-4 py-3 bg-bg-base border border-border-base rounded-lg text-sm font-medium text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:focus:ring-indigo-400/20 focus:border-indigo-600 dark:focus:border-indigo-400 transition-all outline-none",
+                      isGoogleUser && "opacity-60 cursor-not-allowed bg-bg-base/50"
+                    )}
                   />
                 </div>
                 <div className="space-y-2">
@@ -183,8 +170,12 @@ function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (da
                   <input 
                     type="email" 
                     value={formData.email}
+                    disabled={isGoogleUser}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 bg-bg-base border border-border-base rounded-lg text-sm font-medium text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:focus:ring-indigo-400/20 focus:border-indigo-600 dark:focus:border-indigo-400 transition-all outline-none"
+                    className={cn(
+                      "w-full px-4 py-3 bg-bg-base border border-border-base rounded-lg text-sm font-medium text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:focus:ring-indigo-400/20 focus:border-indigo-600 dark:focus:border-indigo-400 transition-all outline-none",
+                      isGoogleUser && "opacity-60 cursor-not-allowed bg-bg-base/50"
+                    )}
                   />
                 </div>
               </div>
@@ -195,11 +186,16 @@ function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (da
                   <input 
                     type="text" 
                     value={formData.phone}
+                    disabled={isGoogleUser}
                     onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                    className="w-full px-4 py-3 bg-bg-base border border-border-base rounded-lg text-sm font-medium text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:focus:ring-indigo-400/20 focus:border-indigo-600 dark:focus:border-indigo-400 transition-all outline-none"
+                    className={cn(
+                      "w-full px-4 py-3 bg-bg-base border border-border-base rounded-lg text-sm font-medium text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 dark:focus:ring-indigo-400/20 focus:border-indigo-600 dark:focus:border-indigo-400 transition-all outline-none",
+                      isGoogleUser && "opacity-60 cursor-not-allowed bg-bg-base/50"
+                    )}
                   />
                 </div>
               </div>
+
 
               <div className="grid grid-cols-2 gap-6">
                 <div className="space-y-2">
@@ -229,210 +225,37 @@ function PersonalInfoView({ user, onUpdateUser }: { user: any; onUpdateUser: (da
                     <span className="text-xs font-bold uppercase tracking-wider">{t('updated')}</span>
                   </div>
                 )}
-                <button 
-                  onClick={handleSave}
-                  disabled={isSaving}
-                  className={cn(
-                    "px-10 py-4 bg-[#3634B3] hover:opacity-90 text-white text-sm font-bold rounded-lg shadow-lg shadow-[#3634B3]/20 transition-all uppercase tracking-widest active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2",
-                    isSaving && "cursor-wait"
-                  )}
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="h-3 w-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
-                      {t('savingLabel')}
-                    </>
-                  ) : t('saveChanges')}
-                </button>
+                {!isGoogleUser && (
+                  <button 
+                    onClick={handleSave}
+                    disabled={isSaving}
+                    className={cn(
+                      "px-10 py-4 bg-[#3634B3] hover:opacity-90 text-white text-sm font-bold rounded-lg shadow-lg shadow-[#3634B3]/20 transition-all uppercase tracking-widest active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed flex items-center gap-2",
+                      isSaving && "cursor-wait"
+                    )}
+                  >
+                    {isSaving ? (
+                      <>
+                        <div className="h-3 w-3 border-2 border-white/20 border-t-white rounded-full animate-spin"></div>
+                        {t('savingLabel')}
+                      </>
+                    ) : t('saveChanges')}
+                  </button>
+                )}
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 mt-6 transition-colors">
-        <h3 className="text-lg font-bold text-text-base mb-6 transition-colors">{t('interface')}</h3>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {[
-            { id: 'light', label: t('lightMode'), icon: Sun, desc: t('lightDesc') },
-            { id: 'dark', label: t('darkMode'), icon: Moon, desc: t('darkDesc') },
-            { id: 'auto', label: t('auto'), icon: Monitor, desc: t('autoDesc') }
-          ].map((item) => {
-            const Icon = item.icon;
-            const isSelected = theme === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setTheme(item.id as any)}
-                className={cn(
-                  "flex flex-col items-center gap-4 p-6 rounded-2xl border-2 transition-all group",
-                  isSelected 
-                    ? "border-indigo-600 dark:border-indigo-400 bg-indigo-50 dark:bg-indigo-900/20" 
-                    : "border-border-base hover:border-indigo-300 dark:hover:border-indigo-700 bg-bg-base/30"
-                )}
-              >
-                <div className={cn(
-                  "h-12 w-12 rounded-xl flex items-center justify-center transition-colors",
-                  isSelected ? "bg-indigo-600 dark:bg-indigo-400 text-white" : "bg-bg-base text-text-muted group-hover:text-text-base"
-                )}>
-                  <Icon className="h-6 w-6" />
-                </div>
-                <div className="text-center">
-                  <p className={cn("text-sm font-bold transition-colors", isSelected ? "text-[#3634B3]" : "text-text-base")}>{item.label}</p>
-                  <p className="text-[10px] text-text-muted mt-0.5 transition-colors">{item.desc}</p>
-                </div>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <ProfileFooter />
-    </div>
-  );
-}
-
-function NotificationsSettingsView() {
-  const { t } = useLanguage();
-  const [pushEnabled, setPushEnabled] = useState(true);
-  const [emailEnabled, setEmailEnabled] = useState(false);
-  const [dndEnabled, setDndEnabled] = useState(false);
-  const [dndDuration, setDndDuration] = useState('1h');
-  const [dndTimeRange, setDndTimeRange] = useState('07:00 - 08:00');
-
-  const durations = [
-    { id: '30m', label: t('duration30m') },
-    { id: '1h', label: t('duration1h') },
-    { id: '2h', label: t('duration2h') },
-    { id: '4h', label: t('duration4h') },
-    { id: '8h', label: t('duration8h') },
-    { id: 'all', label: t('durationAllDay') }
-  ];
-  
-  // Logic to generate time ranges based on duration
-  const getTimeRanges = (durationId: string) => {
-    if (durationId === '30m') {
-      return ['07:00 - 07:30', '07:30 - 08:00', '08:00 - 08:30', '08:30 - 09:00', '09:00 - 09:30'];
-    } else if (durationId === '1h') {
-      return ['07:00 - 08:00', '08:00 - 09:00', '09:00 - 10:00', '10:00 - 11:00', '11:00 - 12:00'];
-    } else if (durationId === '2h') {
-      return ['08:00 - 10:00', '10:00 - 12:00', '12:00 - 14:00', '14:00 - 16:00'];
-    } else if (durationId === '4h') {
-      return ['08:00 - 12:00', '12:00 - 16:00', '16:00 - 20:00'];
-    } else if (durationId === '8h') {
-      return ['08:00 - 16:00', '16:00 - 00:00'];
-    } else {
-      return ['00:00 - 23:59'];
-    }
-  };
-
-  const ranges = getTimeRanges(dndDuration);
-
-  return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('notificationSettings')}</h1>
-
-      <div className="space-y-6">
-        {/* Toggle Sections */}
-        <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 transition-colors">
-          <div className="flex items-center justify-between py-4 border-b border-border-base transition-colors">
-            <div>
-              <h4 className="text-base font-bold text-text-base transition-colors">{t('pushNotifications')}</h4>
-              <p className="text-sm text-text-muted transition-colors">{t('pushDesc')}</p>
-            </div>
-            <button 
-              onClick={() => setPushEnabled(!pushEnabled)}
-              className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                pushEnabled ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
-              )}
-            >
-              <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", pushEnabled ? "translate-x-6" : "translate-x-1")} />
-            </button>
-          </div>
-
-          <div className="flex items-center justify-between py-4 transition-colors">
-            <div>
-              <h4 className="text-base font-bold text-text-base transition-colors">{t('emailNotifications')}</h4>
-              <p className="text-sm text-text-muted transition-colors">{t('emailDesc')}</p>
-            </div>
-            <button 
-              onClick={() => setEmailEnabled(!emailEnabled)}
-              className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                emailEnabled ? "bg-indigo-600" : "bg-gray-200 dark:bg-gray-700"
-              )}
-            >
-              <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", emailEnabled ? "translate-x-6" : "translate-x-1")} />
-            </button>
-          </div>
-        </div>
-
-        {/* Do Not Disturb Section */}
-        <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 transition-colors">
-          <div className="flex items-center justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-[#3634B3]" />
-              <h3 className="text-xl font-bold text-[#3634B3] transition-colors">{t('dndMode')}</h3>
-            </div>
-            <button 
-              onClick={() => setDndEnabled(!dndEnabled)}
-              className={cn(
-                "relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none",
-                dndEnabled ? "bg-[#3634B3]" : "bg-gray-200 dark:bg-gray-700"
-              )}
-            >
-              <span className={cn("inline-block h-4 w-4 transform rounded-full bg-white transition-transform", dndEnabled ? "translate-x-6" : "translate-x-1")} />
-            </button>
-          </div>
-
-          <p className="text-sm text-text-muted mb-8 transition-colors">
-            {t('dndDesc')}
-          </p>
-
-          <div className={cn("flex flex-col md:flex-row gap-4 transition-all", !dndEnabled && "opacity-40 pointer-events-none")}>
-            <div className="flex-1 space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest transition-colors">{t('duration')}</label>
-              <select 
-                value={dndDuration}
-                onChange={(e) => {
-                  setDndDuration(e.target.value);
-                  const newRanges = getTimeRanges(e.target.value);
-                  setDndTimeRange(newRanges[0]);
-                }}
-                className="w-full px-4 py-3 bg-bg-base border border-border-base rounded-xl text-sm text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-colors cursor-pointer"
-              >
-                {durations.map(d => <option key={d.id} value={d.id}>{d.label}</option>)}
-              </select>
-            </div>
-
-            <div className="flex-1 space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest transition-colors">{t('timeRange')}</label>
-              <select 
-                value={dndTimeRange}
-                onChange={(e) => setDndTimeRange(e.target.value)}
-                className="w-full px-4 py-3 bg-bg-base border border-border-base rounded-xl text-sm text-text-base focus:outline-none focus:ring-2 focus:ring-indigo-600/20 transition-colors cursor-pointer"
-              >
-                {ranges.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
-            </div>
-          </div>
-        </div>
-
-        <div className="p-8 bg-amber-50 dark:bg-amber-950/20 border border-amber-100 dark:border-amber-900/30 rounded-3xl transition-colors">
-          <p className="text-xs text-amber-800 dark:text-amber-400 font-medium leading-relaxed transition-colors">
-            {t('criticalNotifyNote')}
-          </p>
-        </div>
-      </div>
-
-      <ProfileFooter />
+      <SentinelFooter />
     </div>
   );
 }
 
 function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser: (data: any) => void }) {
   const { t } = useLanguage();
+  const isGoogleUser = user?.isGoogleUser === true;
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -449,6 +272,7 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
   };
 
   const handleUpdatePassword = () => {
+    if (isGoogleUser) return;
     const newErrors: {current?: boolean, new?: boolean, confirm?: boolean} = {};
     
     // Check current password (default to 123456 if none set)
@@ -496,11 +320,19 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
                 <h3 className="text-xl font-bold text-[#3634B3] transition-colors">{t('changePassword')}</h3>
             </div>
 
-            <div className="space-y-6">
+            {isGoogleUser && (
+              <div className="mb-6 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900 rounded-xl flex items-center gap-3 text-amber-700 dark:text-amber-500 text-xs font-bold transition-colors">
+                <AlertCircle className="h-5 w-5" />
+                <span>Tính năng đổi mật khẩu bị vô hiệu hóa khi đăng nhập bằng Google. Vui lòng quản lý mật khẩu trong cài đặt tài khoản Google của bạn.</span>
+              </div>
+            )}
+
+            <div className={cn("space-y-6", isGoogleUser && "opacity-50 pointer-events-none")}>
                 <div className="space-y-2">
                     <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider transition-colors">{t('currentPassword')}</label>
                     <input 
                         type="password" 
+                        disabled={isGoogleUser}
                         placeholder="••••••••••••"
                         value={currentPassword}
                         onChange={(e) => {
@@ -520,6 +352,7 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
                         <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider transition-colors">{t('newPassword')}</label>
                         <input 
                             type="password" 
+                            disabled={isGoogleUser}
                             placeholder="••••••••"
                             value={newPassword}
                             onChange={(e) => {
@@ -537,6 +370,7 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
                         <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider transition-colors">{t('confirmNewPassword')}</label>
                         <input 
                             type="password" 
+                            disabled={isGoogleUser}
                             placeholder="••••••••"
                             value={confirmPassword}
                             onChange={(e) => {
@@ -555,7 +389,7 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
                 <div className="flex items-center gap-4">
                     <button 
                         onClick={handleUpdatePassword}
-                        disabled={isSaving}
+                        disabled={isSaving || isGoogleUser}
                         className="flex items-center gap-2 px-8 py-3 bg-[#3634B3] hover:opacity-90 text-white text-xs font-bold rounded-lg uppercase tracking-wider transition-all disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         {isSaving ? t('updatingLabel') : t('updatePasswordLabel')} <ChevronLeft className="h-4 w-4 rotate-180" />
@@ -571,9 +405,10 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
           </div>
         </div>
 
+
         <div className="lg:col-span-1">
           {/* Password Requirements */}
-          <div className="bg-orange-50/50 dark:bg-orange-950/20 border border-orange-100 dark:border-orange-900/30 rounded-2xl p-8 flex flex-col gap-4 h-full transition-colors">
+          <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 flex flex-col gap-4 h-full transition-colors">
               <div className="h-10 w-10 bg-orange-600 rounded-xl flex items-center justify-center text-white font-bold italic text-lg shadow-lg shadow-orange-600/20">i</div>
               <div>
                   <h4 className="font-bold text-text-base mb-3 transition-colors">{t('securityRequirements')}</h4>
@@ -645,7 +480,7 @@ function SecuritySettingsView({ user, onUpdateUser }: { user: any, onUpdateUser:
         </div>
       </div>
 
-      <ProfileFooter />
+      <SentinelFooter />
     </div>
   );
 }
@@ -738,7 +573,7 @@ function ActivityLogView() {
         </div>
       </div>
 
-      <ProfileFooter />
+      <SentinelFooter />
     </div>
   );
 }

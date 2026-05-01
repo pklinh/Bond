@@ -13,6 +13,7 @@ function cn(...inputs: ClassValue[]) {
 
 interface MaturityBond extends Bond {
   issuerName: string;
+  ticker?: string;
   daysLeft: number;
   industry?: string;
 }
@@ -82,7 +83,8 @@ export default function MaturityListView({ setSelectedBond, setBondEnterpriseNam
               return {
                 id: b.bondCode,
                 code: b.bondCode,
-                enterpriseId: '',
+                enterpriseId: b.issuerSymbol || '',
+                ticker: b.issuerSymbol,
                 issuerName: b.issuerName,
                 maturityDate: b.maturityDate?.split('T')[0] || '',
                 daysLeft: diffDays > 0 ? diffDays : 0,
@@ -404,8 +406,8 @@ export default function MaturityListView({ setSelectedBond, setBondEnterpriseNam
                       </td>
                       <td className="px-6 py-5 text-left border-none">
                         <div className="max-w-[200px]">
-                          <p className="text-xs font-bold text-text-base truncate group-hover:text-text-highlight transition-colors">{bond.issuerName}</p>
-                          <p className="text-[10px] text-text-muted truncate font-semibold group-hover:text-text-highlight transition-colors">{bond.industry}</p>
+                          <p className="text-xs font-bold text-text-base truncate group-hover:text-text-highlight transition-colors">{t(bond.issuerName as any, bond.ticker)}</p>
+                          <p className="text-[10px] text-text-muted truncate font-semibold group-hover:text-text-highlight transition-colors">{t(bond.industry as any)}</p>
                         </div>
                       </td>
                       <td className="px-6 py-5 whitespace-nowrap text-xs font-bold text-text-muted text-right border-none group-hover:text-text-highlight transition-colors">

@@ -28,7 +28,7 @@ export default function Header({ onProfileClick, onSettingsClick, onHelpClick, o
           className="text-xl font-bold text-text-highlight tracking-tight hover:cursor-pointer select-none transition-colors" 
           onClick={onLogoClick}
         >
-          FIREANT DASHBOARD
+          DASHBOARD
         </h1>
       </div>
 
@@ -59,10 +59,13 @@ export default function Header({ onProfileClick, onSettingsClick, onHelpClick, o
           >
             <div className="text-right hidden sm:block">
               <p className="text-sm font-semibold text-text-base leading-none">{user?.name || 'Admin User'}</p>
-              <p className="text-xs text-text-muted mt-1 uppercase">Institutional</p>
             </div>
-            <div className="h-9 w-9 rounded-full bg-[#3634B3] flex items-center justify-center text-white font-bold">
-              {getInitials(user?.name)}
+            <div className="h-9 w-9 rounded-full bg-[#3634B3] flex items-center justify-center text-white font-bold overflow-hidden">
+              {user?.picture ? (
+                <img src={user.picture} alt={user.name} className="h-full w-full object-cover" referrerPolicy="no-referrer" />
+              ) : (
+                getInitials(user?.name)
+              )}
             </div>
           </button>
 

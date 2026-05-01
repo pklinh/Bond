@@ -4,6 +4,7 @@ export interface Enterprise {
   id: string;
   ticker: string;
   name: string;
+  internationalName?: string;
   industry: IndustryType;
   bondCount: number;
   issueValue: number;
@@ -36,19 +37,23 @@ export interface Bond {
 export interface NewsItem {
   id: string;
   source: string;
+  sourceUrl?: string;
   title: string;
   summary: string;
   content: string;
   author: string;
   image: string;
+  images?: string[];
   date: string;
   url: string;
   category?: string;
+  originalUrl?: string;
 }
 
 export interface ExpiringBond {
   id: string;
   code: string;
+  ticker?: string;
   maturityDate: string;
   interestRate: number;
   listedVolume: number;

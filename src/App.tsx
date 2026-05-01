@@ -15,6 +15,9 @@ import LoginView from './components/LoginView';
 import HelpView from './components/HelpView';
 import { IndustryType, Enterprise, Bond, NewsItem } from './types';
 import { useLanguage } from './LanguageContext';
+import { auth, db } from './lib/firebase';
+import { onAuthStateChanged, signOut } from 'firebase/auth';
+import { doc, getDoc } from 'firebase/firestore';
 
 export default function App() {
   const { t } = useLanguage();
@@ -39,26 +42,57 @@ export default function App() {
   }, [activeTab, activeIndustry]);
 
   useEffect(() => {
-    // Simulated auth check
-    const isLogged = localStorage.getItem('sentinel_session') === 'true';
-    const storedProfile = localStorage.getItem('sentinel_profile');
-    
-    if (isLogged && storedProfile) {
-      setUser(JSON.parse(storedProfile));
-    }
-    setLoading(false);
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (firebaseUser) {
+        // Fetch user data from Firestore
+        try {
+          const userDocRef = doc(db, 'users', firebaseUser.uid);
+          const userDoc = await getDoc(userDocRef);
+          
+          if (userDoc.exists()) {
+            setUser(userDoc.data());
+          } else {
+            // Fallback for unexpected case where profile doc missing
+            const fallbackData = {
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName || 'Google User',
+              picture: firebaseUser.photoURL,
+              isGoogleUser: true
+            };
+            setUser(fallbackData);
+          }
+        } catch (err) {
+          console.error("Error fetching user profile:", err);
+          setUser({
+            uid: firebaseUser.uid,
+            email: firebaseUser.email,
+            name: firebaseUser.displayName || 'Google User',
+            picture: firebaseUser.photoURL,
+            isGoogleUser: true
+          });
+        }
+      } else {
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, []);
 
   const handleLoginSuccess = (userData: any) => {
     setUser(userData);
-    localStorage.setItem('sentinel_session', 'true');
-    localStorage.setItem('sentinel_profile', JSON.stringify(userData));
     setActiveTab('overview');
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    try {
+      await signOut(auth);
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
     setUser(null);
-    localStorage.removeItem('sentinel_session');
     setActiveTab('overview');
   };
 

@@ -17,6 +17,7 @@ import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
+import SentinelFooter from './SentinelFooter';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -92,6 +93,8 @@ export default function HelpView({ onBack }: HelpViewProps) {
           {activeTab === 'faq' && <FAQView />}
           {activeTab === 'report' && <ErrorReportView />}
           {activeTab === 'contact' && <ContactSupportView />}
+
+          <SentinelFooter />
         </div>
       </div>
     </div>

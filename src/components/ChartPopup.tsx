@@ -41,7 +41,12 @@ export default function ChartPopup({ title, option, dataSummary, onClose }: Char
     const generateInsight = async () => {
       setLoading(true);
       try {
-        const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
+        const apiKey = process.env.GEMINI_API_KEY;
+        if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+          throw new Error('GEMINI_API_KEY is not configured');
+        }
+
+        const ai = new GoogleGenAI({ apiKey });
 
         const prompt = `
           ${t('aiChartPromptRole')} 
@@ -67,7 +72,7 @@ export default function ChartPopup({ title, option, dataSummary, onClose }: Char
     };
 
     generateInsight();
-  }, [title, dataSummary]);
+  }, [title, dataSummary, language, t]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-300">

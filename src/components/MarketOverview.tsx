@@ -1,5 +1,4 @@
 import ReactECharts from 'echarts-for-react';
-import { mockEnterprises } from '../mockData';
 import { useState, useEffect } from 'react';
 import { formatInterestRate, formatNumber } from '../utils/format';
 import { useTheme } from '../ThemeContext';
@@ -71,15 +70,13 @@ export default function MarketOverview() {
       setError(null);
       try {
         const token = getFireantToken();
-        if (!token) {
-          throw new Error(t('tokenError401'));
-        }
-
-        const cleanToken = cleanTokenString(token);
-        const headers = {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
+        const cleanToken = token ? cleanTokenString(token) : undefined;
+        const headers: any = {
+          'Accept': 'application/json'
         };
+        if (cleanToken) {
+          headers['Authorization'] = `Bearer ${cleanToken}`;
+        }
 
         let currentDebt = topDebtData;
         let currentInterest = topInterestData;
@@ -158,7 +155,9 @@ export default function MarketOverview() {
       trigger: 'axis', 
       axisPointer: { type: 'shadow' },
       formatter: (params: any) => {
-        let relVal = params[0].name;
+        const symbol = params[0].name;
+        const issuer = topDebtData.find(d => d.issuerSymbol === symbol);
+        let relVal = issuer ? t(issuer.issuerName as any, issuer.issuerSymbol) : symbol;
         for (let i = 0; i < params.length; i++) {
           relVal += `<br/>${params[i].marker}${params[i].seriesName}: ${formatNumber(params[i].value, 0)} ${t('unitBillionVND')}`;
         }
@@ -243,7 +242,9 @@ export default function MarketOverview() {
     tooltip: { 
       trigger: 'axis',
       formatter: (params: any) => {
-        let res = params[0].name;
+        const symbol = params[0].name;
+        const issuer = topDebtData.find(d => d.issuerSymbol === symbol);
+        let res = issuer ? t(issuer.issuerName as any, issuer.issuerSymbol) : symbol;
         params.forEach((p: any) => {
           res += `<br/>${p.marker}${p.seriesName}: ${formatNumber(p.value, 0)}${p.seriesName === t('remainingDebtTitle') ? ' ' + t('unitBillionVND') : ''}`;
         });
@@ -321,7 +322,7 @@ export default function MarketOverview() {
     xAxis: { 
       type: 'category', 
       data: industryData.length > 0 
-        ? industryData.map(d => d.icbName) 
+        ? industryData.map(d => t(d.icbName as any)) 
         : [], 
       axisLabel: { ...categoryLabelStyle, rotate: 45 } 
     },
@@ -368,7 +369,7 @@ export default function MarketOverview() {
     grid: { left: '3%', right: '8%', top: '5%', bottom: '8%', containLabel: true },
     xAxis: { 
       type: 'category', 
-      data: industryData.length > 0 ? industryData.map(d => d.icbName) : [], 
+      data: industryData.length > 0 ? industryData.map(d => t(d.icbName as any)) : [], 
       axisLabel: { ...categoryLabelStyle, rotate: 45 } 
     },
     yAxis: { 
@@ -429,29 +430,29 @@ export default function MarketOverview() {
   }
 
   return (
-    <div className="p-6 space-y-6 transition-colors duration-300">
-      <div className="flex items-center justify-between mb-2">
+    <div className="space-y-2 transition-colors duration-300">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h2 className="text-2xl font-bold text-text-base tracking-tight">{t('marketOverview')}</h2>
         </div>
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-2">
         {/* Top 10 Debt - Double Height */}
         <div 
-          className="col-span-12 lg:col-span-6 bg-bg-surface p-4 rounded-2xl border border-border-base shadow-sm"
+          className="col-span-12 lg:col-span-6 bg-bg-surface p-2 rounded-2xl border border-border-base shadow-sm"
         >
           <div className="mb-2">
             <h3 className="text-base font-bold text-text-base text-center">{t('top10Debt')}</h3>
             <p className="text-[10px] text-text-muted text-right mt-1">{t('unitBillion')}</p>
           </div>
-          <ReactECharts option={topDebtOptions} style={{ height: '550px' }} />
+          <ReactECharts option={topDebtOptions} style={{ height: '500px' }} />
         </div>
 
-        <div className="col-span-12 lg:col-span-6 space-y-6">
+        <div className="col-span-12 lg:col-span-6 space-y-2">
           {/* Top 10 Interest Rates */}
           <div 
-            className="bg-bg-surface p-4 rounded-2xl border border-border-base shadow-sm"
+            className="bg-bg-surface p-2 rounded-2xl border border-border-base shadow-sm"
           >
             <div className="mb-2">
               <h3 className="text-base font-bold text-text-base text-center">{t('top10Interest')}</h3>
@@ -462,7 +463,7 @@ export default function MarketOverview() {
 
           {/* Debt & Lots Relationship */}
           <div 
-            className="bg-bg-surface p-4 rounded-2xl border border-border-base shadow-sm"
+            className="bg-bg-surface p-2 rounded-2xl border border-border-base shadow-sm"
           >
             <h3 className="text-base font-bold text-text-base text-center mb-2">{t('debtAndLots')}</h3>
             <ReactECharts option={debtLotsOptions} style={{ height: '250px' }} />
@@ -471,7 +472,7 @@ export default function MarketOverview() {
 
         {/* Industry Value - Full Width */}
         <div 
-          className="col-span-12 bg-bg-surface p-4 rounded-2xl border border-border-base shadow-sm"
+          className="col-span-12 bg-bg-surface p-2 rounded-2xl border border-border-base shadow-sm"
         >
           <div className="mb-2">
             <h3 className="text-base font-bold text-text-base text-center">{t('valueByIndustry')}</h3>
@@ -482,7 +483,7 @@ export default function MarketOverview() {
 
         {/* Industry Volume - Full Width */}
         <div 
-          className="col-span-12 bg-bg-surface p-4 rounded-2xl border border-border-base shadow-sm"
+          className="col-span-12 bg-bg-surface p-2 rounded-2xl border border-border-base shadow-sm"
         >
           <div className="mb-2">
             <h3 className="text-base font-bold text-text-base text-center">{t('volumeByIndustry')}</h3>

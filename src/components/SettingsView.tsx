@@ -6,6 +6,7 @@ import { getFireantToken, setFireantToken, removeFireantToken, cleanTokenString 
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
 import { Language } from '../translations';
+import SentinelFooter from './SentinelFooter';
 
 function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -71,14 +72,16 @@ export default function SettingsView() {
       </div>
 
       {/* Main Content */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-12 custom-scrollbar">
-        <div className="max-w-4xl">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-12 custom-scrollbar transition-colors">
+        <div className="max-w-5xl">
           {activeTab === 'notifications' && <NotificationSettings />}
           {activeTab === 'interface' && <InterfaceSettings />}
           {activeTab === 'token' && <TokenSettings />}
           {activeTab === 'aiKey' && <AIKeySettings />}
           {activeTab === 'security' && <AppSecuritySettings />}
           {activeTab === 'about' && <AboutSettings />}
+          
+          <SentinelFooter />
         </div>
       </div>
     </div>
@@ -121,55 +124,62 @@ function NotificationSettings() {
   const timeRanges = generateRanges(dndDuration);
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-12 transition-colors">{t('notifications')}</h1>
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
+      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('notifications')}</h1>
 
-      <div className="bg-bg-surface rounded-3xl shadow-sm border border-border-base p-12 space-y-12 transition-colors">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">{t('pushNotificationsTitle')}</h3>
-            <p className="text-xs text-text-muted">{t('pushNotificationsDesc')}</p>
+      <div className="space-y-6">
+        {/* Push Notifications Card */}
+        <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('pushNotificationsTitle')}</h3>
+              <p className="text-sm text-text-muted transition-colors leading-relaxed">{t('pushNotificationsDesc')}</p>
+            </div>
+            <button 
+              onClick={() => setPushEnabled(!pushEnabled)}
+              className={cn(
+                "w-14 h-7 rounded-full relative p-1 transition-all duration-300",
+                pushEnabled ? "bg-text-highlight" : "bg-bg-base"
+              )}
+            >
+              <div className={cn(
+                "h-5 w-5 bg-white rounded-full shadow-sm transition-transform duration-300",
+                pushEnabled ? "translate-x-7" : "translate-x-0"
+              )}></div>
+            </button>
           </div>
-          <button 
-            onClick={() => setPushEnabled(!pushEnabled)}
-            className={cn(
-              "w-14 h-7 rounded-full relative p-1 transition-all duration-300",
-              pushEnabled ? "bg-text-highlight" : "bg-bg-base"
-            )}
-          >
-            <div className={cn(
-              "h-5 w-5 bg-white rounded-full shadow-sm transition-transform duration-300",
-              pushEnabled ? "translate-x-7" : "translate-x-0"
-            )}></div>
-          </button>
         </div>
 
-        <div className="border-t border-border-base pt-12 flex items-center justify-between">
-          <div>
-            <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">{t('emailNotificationsTitle')}</h3>
-            <p className="text-xs text-text-muted">{t('emailNotificationsDesc')}</p>
+        {/* Email Notifications Card */}
+        <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 transition-colors">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('emailNotificationsTitle')}</h3>
+              <p className="text-sm text-text-muted transition-colors leading-relaxed">{t('emailNotificationsDesc')}</p>
+            </div>
+            <button 
+              onClick={() => setEmailEnabled(!emailEnabled)}
+              className={cn(
+                "w-14 h-7 rounded-full relative p-1 transition-all duration-300",
+                emailEnabled ? "bg-text-highlight" : "bg-bg-base"
+              )}
+            >
+              <div className={cn(
+                "h-5 w-5 bg-white rounded-full shadow-sm transition-transform duration-300",
+                emailEnabled ? "translate-x-7" : "translate-x-0"
+              )}></div>
+            </button>
           </div>
-          <button 
-            onClick={() => setEmailEnabled(!emailEnabled)}
-            className={cn(
-              "w-14 h-7 rounded-full relative p-1 transition-all duration-300",
-              emailEnabled ? "bg-text-highlight" : "bg-bg-base"
-            )}
-          >
-            <div className={cn(
-              "h-5 w-5 bg-white rounded-full shadow-sm transition-transform duration-300",
-              emailEnabled ? "translate-x-7" : "translate-x-0"
-            )}></div>
-          </button>
         </div>
 
-        <div className="border-t border-border-base pt-12">
-          <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-6">{t('dndTitleTotal')}</h3>
-          <p className="text-xs text-text-muted mb-8">{t('dndSubtitle')}</p>
+        {/* Do Not Disturb Card */}
+        <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 transition-colors">
+          <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('dndTitleTotal')}</h3>
+          <p className="text-sm text-text-muted mb-8 transition-colors leading-relaxed">{t('dndSubtitle')}</p>
           
           <div className="flex flex-col md:flex-row gap-4 max-w-2xl">
             <div className="flex-1 space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{t('duration')}</label>
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest transition-colors">{t('duration')}</label>
               <div className="relative text-text-base">
                 <select 
                   value={dndDuration}
@@ -189,7 +199,7 @@ function NotificationSettings() {
             </div>
 
             <div className="flex-1 space-y-2">
-              <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{t('timeRange')}</label>
+              <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest transition-colors">{t('timeRange')}</label>
               <div className="relative text-text-base">
                 <select 
                   value={dndTimeRange}
@@ -218,15 +228,15 @@ function InterfaceSettings() {
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 transition-colors">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-12">{t('interface')}</h1>
+      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('interface')}</h1>
 
       <div className="space-y-6">
         {/* Theme Selection */}
-        <div className="bg-bg-surface rounded-3xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="max-w-xs">
-              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">{t('themeMode')}</h3>
-              <p className="text-xs text-text-muted leading-relaxed">{t('themeDescription')}</p>
+            <div className="max-w-xs transition-colors">
+              <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('themeMode')}</h3>
+              <p className="text-sm text-text-muted leading-relaxed transition-colors">{t('themeDescription')}</p>
             </div>
             
             <div className="flex items-start gap-6">
@@ -282,11 +292,11 @@ function InterfaceSettings() {
         </div>
 
         {/* Language Selection */}
-        <div className="bg-bg-surface rounded-3xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="max-w-xs">
-              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">{t('uiLanguage')}</h3>
-              <p className="text-xs text-text-muted leading-relaxed">{t('langDescription')}</p>
+            <div className="max-w-xs transition-colors">
+              <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('uiLanguage')}</h3>
+              <p className="text-sm text-text-muted leading-relaxed transition-colors">{t('langDescription')}</p>
             </div>
             
             <div className="relative w-full md:w-72">
@@ -307,11 +317,11 @@ function InterfaceSettings() {
         </div>
 
         {/* Font Size Selection */}
-        <div className="bg-bg-surface rounded-3xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="max-w-xs">
-              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">{t('fontSize')}</h3>
-              <p className="text-xs text-text-muted leading-relaxed">{t('fontDescription')}</p>
+            <div className="max-w-xs transition-colors">
+              <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('fontSize')}</h3>
+              <p className="text-sm text-text-muted leading-relaxed transition-colors">{t('fontDescription')}</p>
             </div>
             
             <div className="flex items-center gap-12 flex-1 max-w-lg">
@@ -353,11 +363,11 @@ function InterfaceSettings() {
         </div>
 
         {/* UI Density Selection */}
-        <div className="bg-bg-surface rounded-3xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
-            <div className="max-w-xs">
-              <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-2">{t('uiDensity')}</h3>
-              <p className="text-xs text-text-muted leading-relaxed">{t('densityDescription')}</p>
+            <div className="max-w-xs transition-colors">
+              <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('uiDensity')}</h3>
+              <p className="text-sm text-text-muted leading-relaxed transition-colors">{t('densityDescription')}</p>
             </div>
             
             <div className="bg-bg-base p-1.5 rounded-xl flex transition-colors border border-border-base">
@@ -401,7 +411,7 @@ function TokenSettings() {
   const handleTest = async () => {
     if (!token.trim()) {
       setStatus('error');
-      setMessage(language === 'vi' ? 'Vui lòng nhập mã token để kiểm tra.' : 'Please enter access token to test.');
+      setMessage(t('enterTokenToTest'));
       return;
     }
 
@@ -426,14 +436,14 @@ function TokenSettings() {
       }
     } catch (error) {
       setStatus('error');
-      setMessage(language === 'vi' ? 'Không thể kết nối tới máy chủ.' : 'Unable to connect to server.');
+      setMessage(t('unableConnectServer'));
     }
   };
 
   const handleSave = () => {
     if (!token.trim()) {
       setStatus('error');
-      setMessage(language === 'vi' ? 'Vui lòng nhập mã token.' : 'Please enter access token.');
+      setMessage(t('enterTokenToSave'));
       return;
     }
     setFireantToken(token);
@@ -446,17 +456,17 @@ function TokenSettings() {
     removeFireantToken();
     setToken('');
     setStatus('success');
-    setMessage(language === 'vi' ? 'Đã xóa token.' : 'Token removed.');
+    setMessage(t('tokenRemoved'));
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-12 transition-colors">{t('tokenTitleSettings')}</h1>
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
+      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('tokenTitleSettings')}</h1>
 
-      <div className="bg-bg-surface rounded-3xl shadow-sm border border-border-base p-12 space-y-8 transition-colors">
+      <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 space-y-8 transition-colors">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">FIREANT ACCESS TOKEN</label>
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest transition-colors">FIREANT ACCESS TOKEN</label>
             <button 
               onClick={handleTest}
               disabled={status === 'testing'}
@@ -472,7 +482,7 @@ function TokenSettings() {
             value={token}
             onChange={(e) => setToken(e.target.value)}
           />
-          <p className="text-[10px] text-text-muted">
+          <p className="text-[10px] text-text-muted transition-colors">
             {t('tokenHelp')}
           </p>
         </div>
@@ -523,7 +533,7 @@ function AIKeySettings() {
   const handleSave = () => {
     if (!apiKey.trim()) {
       setStatus('error');
-      setMessage(language === 'vi' ? 'Vui lòng nhập API key.' : 'Please enter API key.');
+      setMessage(t('enterApiKeyToSave'));
       return;
     }
     localStorage.setItem('ai_api_key', apiKey.trim());
@@ -536,23 +546,23 @@ function AIKeySettings() {
     localStorage.removeItem('ai_api_key');
     setApiKey('');
     setStatus('success');
-    setMessage(language === 'vi' ? 'Đã xóa API key.' : 'API key removed.');
+    setMessage(t('apiKeyRemoved'));
     setTimeout(() => setStatus('idle'), 3000);
   };
 
   return (
-    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-12">{t('aiKeyTitleSettings')}</h1>
+    <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
+      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('aiKeyTitleSettings')}</h1>
 
-      <div className="bg-bg-surface rounded-3xl shadow-sm border border-border-base p-12 space-y-8 mt-6">
+      <div className="bg-bg-surface rounded-2xl shadow-sm border border-border-base p-8 space-y-8 mt-6 transition-colors">
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <label className="text-[10px] font-bold text-text-muted uppercase tracking-wider">AI API KEY (GEMINI/OPENAI/...)</label>
+            <label className="text-[10px] font-bold text-text-muted uppercase tracking-widest transition-colors">AI API KEY (GEMINI/OPENAI/...)</label>
             <button 
               onClick={() => setShowKey(!showKey)}
               className="text-xs font-bold text-text-highlight hover:underline flex items-center gap-2 transition-colors"
             >
-              {showKey ? t('hideKey') : t('showKey')} API Key
+              {showKey ? t('hideKey') : t('showKey')} {t('apiKey')}
             </button>
           </div>
           <div className="relative">
@@ -563,7 +573,7 @@ function AIKeySettings() {
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
             />
-            <Zap className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted/30" />
+            <Zap className="absolute right-4 top-1/2 -translate-y-1/2 h-5 w-5 text-text-muted/30 transition-colors" />
           </div>
         </div>
 
@@ -582,13 +592,13 @@ function AIKeySettings() {
             onClick={handleDelete}
             className="px-8 py-4 bg-bg-base text-text-muted rounded-xl text-sm font-bold hover:bg-rose-500/10 hover:text-rose-500 transition-all flex items-center justify-center gap-2"
           >
-            <Trash2 className="h-4 w-4" /> {language === 'vi' ? 'Xóa' : 'Delete'}
+            <Trash2 className="h-4 w-4" /> {t('delete')}
           </button>
           <button
             onClick={handleSave}
             className="flex-1 px-8 py-4 bg-text-highlight text-white rounded-xl text-sm font-bold hover:opacity-90 shadow-lg shadow-text-highlight/20 transition-all flex items-center justify-center gap-2"
           >
-            <Save className="h-4 w-4" /> {t('save') + ' API Key'}
+            <Save className="h-4 w-4" /> {t('save')} {t('apiKey')}
           </button>
         </div>
       </div>
@@ -620,39 +630,31 @@ function AppSecuritySettings() {
   const { language, t } = useLanguage();
   const [isBiometricEnabled, setIsBiometricEnabled] = useState(true);
   const [isQuickLoginEnabled, setIsQuickLoginEnabled] = useState(false);
-  const [autoLockTime, setAutoLockTime] = useState(language === 'vi' ? '5 Phút' : '5 Minutes');
+  const [autoLockTime, setAutoLockTime] = useState(language === 'vi' ? `5 ${t('minuteUnit')}` : `5 ${t('minuteUnit')}`);
 
-  const autoLockOptions = language === 'vi' 
-    ? [
-        { label: '1 Phút', value: '1 Phút' },
-        { label: '5 Phút', value: '5 Phút' },
-        { label: '15 Phút', value: '15 Phút' },
-        { label: '30 Phút', value: '30 Phút' },
-        { label: '1 Giờ', value: '1 Giờ' },
-      ]
-    : [
-        { label: '1 Minute', value: '1 Minute' },
-        { label: '5 Minutes', value: '5 Minutes' },
-        { label: '15 Minutes', value: '15 Minutes' },
-        { label: '30 Minutes', value: '30 Minutes' },
-        { label: '1 Hour', value: '1 Hour' },
-      ];
+  const autoLockOptions = [
+    { label: `1 ${t('minuteUnit')}`, value: `1 ${t('minuteUnit')}` },
+    { label: `5 ${t('minuteUnit')}`, value: `5 ${t('minuteUnit')}` },
+    { label: `15 ${t('minuteUnit')}`, value: `15 ${t('minuteUnit')}` },
+    { label: `30 ${t('minuteUnit')}`, value: `30 ${t('minuteUnit')}` },
+    { label: `1 ${language === 'vi' ? 'Giờ' : 'Hour'}`, value: `1 ${language === 'vi' ? 'Giờ' : 'Hour'}` },
+  ];
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 transition-colors">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-12">{t('appSecurityTitle')}</h1>
+      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('appSecurityTitle')}</h1>
 
       <div className="grid grid-cols-12 gap-6">
         {/* Biometric Lock */}
-        <div className="col-span-12 lg:col-span-7 bg-bg-surface rounded-2xl p-10 border border-border-base shadow-sm flex flex-col justify-between transition-colors">
+        <div className="col-span-12 lg:col-span-7 bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm flex flex-col justify-between transition-colors">
           <div className="flex items-start justify-between">
             <div className="flex gap-4">
-              <div className="mt-1">
-                <Fingerprint className="h-5 w-5 text-text-muted/50" />
+              <div className="mt-1 transition-colors">
+                <Fingerprint className="h-5 w-5 text-text-muted/50 transition-colors" />
               </div>
-              <div className="max-w-md">
-                <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">{t('biometricLock')}</h3>
-                <p className="text-xs text-text-muted leading-relaxed">
+              <div className="max-w-md transition-colors">
+                <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('biometricLock')}</h3>
+                <p className="text-sm text-text-muted leading-relaxed transition-colors">
                   {t('biometricLockDesc')}
                 </p>
               </div>
@@ -673,12 +675,12 @@ function AppSecuritySettings() {
         </div>
 
         {/* Auto Lock */}
-        <div className="col-span-12 lg:col-span-5 bg-bg-base/50 rounded-2xl p-10 border border-border-base shadow-sm transition-colors">
-          <div className="flex items-center gap-3 mb-2">
-            <Timer className="h-4 w-4 text-text-muted/50" />
-            <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{t('autoLock')}</h3>
+        <div className="col-span-12 lg:col-span-5 bg-bg-base/50 rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
+          <div className="flex items-center gap-3 mb-2 transition-colors">
+            <Timer className="h-4 w-4 text-text-muted/50 transition-colors" />
+            <h3 className="text-xl font-bold text-text-highlight transition-colors">{t('autoLock')}</h3>
           </div>
-          <p className="text-xs text-text-muted mb-8 leading-relaxed">
+          <p className="text-sm text-text-muted mb-8 leading-relaxed transition-colors">
             {t('autoLockDesc')}
           </p>
           <div className="relative text-text-base">
@@ -698,15 +700,15 @@ function AppSecuritySettings() {
         </div>
 
         {/* Quick Login */}
-        <div className="col-span-12 lg:col-span-8 bg-bg-surface rounded-2xl p-10 border border-border-base shadow-sm flex flex-col justify-between transition-colors">
+        <div className="col-span-12 lg:col-span-8 bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm flex flex-col justify-between transition-colors">
           <div className="flex items-start justify-between">
             <div className="flex gap-4">
-              <div className="mt-1">
-                <Zap className="h-5 w-5 text-text-muted/50" />
+              <div className="mt-1 transition-colors">
+                <Zap className="h-5 w-5 text-text-muted/50 transition-colors" />
               </div>
-              <div className="max-w-xl">
-                <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-wider mb-2">{t('quickLogin')}</h3>
-                <p className="text-xs text-text-muted leading-relaxed">
+              <div className="max-w-xl transition-colors">
+                <h3 className="text-xl font-bold text-text-highlight mb-2 transition-colors">{t('quickLogin')}</h3>
+                <p className="text-sm text-text-muted leading-relaxed transition-colors">
                   {t('quickLoginDesc')}
                 </p>
               </div>
@@ -727,18 +729,18 @@ function AppSecuritySettings() {
         </div>
 
         {/* Organizational Standard Card */}
-        <div className="col-span-12 lg:col-span-4 bg-[#000045] rounded-2xl p-10 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
+        <div className="col-span-12 lg:col-span-4 bg-[#000045] rounded-2xl p-8 relative overflow-hidden flex flex-col justify-between min-h-[220px]">
           {/* Background Decorative Text */}
           <div className="absolute top-0 right-0 text-[100px] font-bold text-white/5 select-none leading-none -translate-y-1/4 translate-x-1/4">
-            {language === 'vi' ? 'ỨNG' : 'APP'}
+            {t('appDesign')}
           </div>
           <div className="absolute bottom-0 left-0 text-[100px] font-bold text-white/5 select-none leading-none translate-y-1/4 -translate-x-1/4">
-            {language === 'vi' ? 'G' : 'L'}
+            {t('appDesignSuffix')}
           </div>
           
-          <div className="relative z-10">
-            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">{t('organizationalStandard')}</h3>
-            <p className="text-xs text-white/70 leading-relaxed">
+          <div className="relative z-10 transition-colors">
+            <h3 className="text-sm font-bold text-white mb-4 uppercase tracking-widest transition-colors">{t('organizationalStandard')}</h3>
+            <p className="text-sm text-white/70 leading-relaxed transition-colors">
               {t('securityStandardDesc')}
             </p>
           </div>
@@ -757,17 +759,17 @@ function AboutSettings() {
   const { t } = useLanguage();
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 pb-12 transition-colors">
-      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-12">{t('aboutTitleSettings')}</h1>
+      <h1 className="text-2xl font-bold text-text-base tracking-tight mb-8 transition-colors">{t('aboutTitleSettings')}</h1>
 
       <div className="space-y-6">
         {/* Version Info Card */}
-        <div className="bg-bg-surface rounded-2xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <h3 className="text-xl font-bold text-text-highlight mb-2 uppercase tracking-tight transition-colors">FIREANT DASHBOARD</h3>
           <p className="text-sm text-text-muted font-medium tracking-wide transition-colors">{t('version')}: 2.5.0 (Build 20231027)</p>
         </div>
 
         {/* Legal Documents */}
-        <div className="bg-bg-surface rounded-2xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-6 transition-colors">{t('legalDocs')}</h3>
           <div className="space-y-3">
             <button className="w-full flex items-center justify-between p-6 bg-bg-base/50 rounded-xl hover:bg-bg-base transition-colors group">
@@ -788,11 +790,11 @@ function AboutSettings() {
         </div>
 
         {/* Support */}
-        <div className="bg-bg-surface rounded-2xl p-10 border border-border-base shadow-sm transition-colors">
+        <div className="bg-bg-surface rounded-2xl p-8 border border-border-base shadow-sm transition-colors">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-8">
             <div className="flex-1">
               <h3 className="text-[10px] font-bold text-text-muted uppercase tracking-widest mb-4 transition-colors">{t('contactSupportLabel')}</h3>
-              <p className="text-xs text-text-muted leading-relaxed max-w-md transition-colors">
+              <p className="text-sm text-text-muted leading-relaxed max-w-md transition-colors">
                 {t('supportDescLabel')}
               </p>
             </div>

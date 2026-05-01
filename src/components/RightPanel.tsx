@@ -88,20 +88,22 @@ export default function RightPanel({
       setError(null);
       try {
         const token = getFireantToken();
-        if (!token) return; // Silent fail for sidebar if no token
-
-        const cleanToken = cleanTokenString(token);
+        const cleanToken = token ? cleanTokenString(token) : undefined;
         const daysArr = [15, 30, 60, 90, 180];
         
         // Fetch all in parallel for better performance
-        const responses = await Promise.all(daysArr.map(days => 
-          fetch(`/api/fireant/bonds/stats/bonds/maturing-soon?days=${days}`, {
-            headers: {
-              'Accept': 'application/json',
-              'Authorization': `Bearer ${cleanToken}`
-            }
-          })
-        ));
+        const responses = await Promise.all(daysArr.map(days => {
+          const headers: any = {
+            'Accept': 'application/json'
+          };
+          if (cleanToken) {
+            headers['Authorization'] = `Bearer ${cleanToken}`;
+          }
+          
+          return fetch(`/api/fireant/bonds/stats/bonds/maturing-soon?days=${days}`, {
+            headers
+          });
+        }));
 
         const allBonds: any[] = [];
         const seenCodes = new Set<string>();
@@ -130,6 +132,7 @@ export default function RightPanel({
         const mappedData: ExpiringBond[] = sortedBonds.map((b: any) => ({
         id: b.bondCode,
         code: b.bondCode,
+        ticker: b.issuerSymbol || b.bondCode.substring(0, 3),
         maturityDate: b.maturityDate?.split('T')[0] || '',
         interestRate: b.bondRate || b.interestRate || 0,
         listedVolume: b.currentListedVolume || b.listedVolume || 0,
@@ -302,13 +305,16 @@ export default function RightPanel({
                       className="flex gap-3 group cursor-pointer"
                     >
                       <img 
-                        src={news.image} 
+                        src={news.image || `https://picsum.photos/seed/${news.id}/200/200`} 
                         alt={news.title} 
                         className="h-16 w-16 rounded-lg object-cover flex-shrink-0"
                         referrerPolicy="no-referrer"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement;
-                          target.src = `https://picsum.photos/seed/${news.title}/200/200`;
+                          // fallback ảnh random nếu ảnh chính lỗi
+                          if (!target.src.includes('picsum.photos')) {
+                          target.src = `https://picsum.photos/seed/${news.id}/200/200`;
+                          }
                         }}
                       />
                       <div className="space-y-1">

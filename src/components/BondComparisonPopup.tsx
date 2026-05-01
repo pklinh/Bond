@@ -1,10 +1,12 @@
-import React from 'react';
+import { useState, useRef, useEffect } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { X, ArrowLeft, RotateCcw, Plus, Check } from 'lucide-react';
-import { Bond } from '../types';
-import { formatNumber, formatInterestRate } from '../utils/format';
+import { X, ArrowLeft, RotateCcw, Plus, Check, Search, Loader2 } from 'lucide-react';
+import { Bond, Enterprise } from '../types';
+import { formatNumber, formatInterestRate, formatDate } from '../utils/format';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
+import { getFireantToken, cleanTokenString } from '../utils/token';
+import { getCache, setCache } from '../utils/cache';
 
 interface BondComparisonPopupProps {
   primaryBond: Bond;
@@ -12,44 +14,178 @@ interface BondComparisonPopupProps {
   onBack: () => void;
 }
 
-// Mock comparison data for demonstration
-const COMPARISON_BONDS: Bond[] = [
-  {
-    id: 'tc-b-28',
-    code: 'TCB2028',
-    enterpriseId: 'tcb',
-    term: '5 năm',
-    interestRate: 8.1,
-    listedVolume: 5000000,
-    issueValue: 5000,
-    listedValue: 4800,
-    issueDate: '2023-01-15',
-    maturityDate: '2028-01-15',
-    interestType: 'Cố định',
-    status: 'Đang lưu hành'
-  },
-  {
-    id: 'nv-l-26',
-    code: 'NVL2026',
-    enterpriseId: 'nvl',
-    term: '3 năm',
-    interestRate: 11.5,
-    listedVolume: 3000000,
-    issueValue: 3000,
-    listedValue: 2500,
-    issueDate: '2023-05-20',
-    maturityDate: '2026-05-20',
-    interestType: 'Thả nổi',
-    status: 'Đang lưu hành'
-  }
-];
-
 export default function BondComparisonPopup({ primaryBond, onClose, onBack }: BondComparisonPopupProps) {
   const { effectiveTheme } = useTheme();
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isDark = effectiveTheme === 'dark';
+  const [comparisonBonds, setComparisonBonds] = useState<Bond[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [suggestions, setSuggestions] = useState<Bond[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [allBondsPool, setAllBondsPool] = useState<Bond[]>([]);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
-  const selectedBonds = [primaryBond, ...COMPARISON_BONDS];
+  const selectedBonds = [primaryBond, ...comparisonBonds];
+
+  // Use search to find bonds
+  useEffect(() => {
+    if (isSearching && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearching]);
+
+  useEffect(() => {
+    const searchBonds = async () => {
+      if (!searchTerm || searchTerm.length < 2) {
+        setSuggestions([]);
+        return;
+      }
+
+      setSearching(true);
+      try {
+        // 1. Search in our pre-fetched pool first
+        const poolMatches = allBondsPool.filter(b => 
+          b.code.toLowerCase().includes(searchTerm.toLowerCase()) &&
+          !selectedBonds.some(sb => sb.code === b.code)
+        );
+
+        // 2. Supplement with API symbol search for anything we missed
+        const token = getFireantToken();
+        let apiMatches: Bond[] = [];
+        if (token) {
+          const cleanToken = cleanTokenString(token);
+          const response = await fetch(`/api/fireant/symbols/search?q=${searchTerm}`, {
+            headers: {
+              'Accept': 'application/json',
+              'Authorization': `Bearer ${cleanToken}`
+            }
+          });
+
+          if (response.ok) {
+            const data = await response.json();
+            if (data && Array.isArray(data)) {
+              apiMatches = data.filter((s: any) => 
+                (s.symbolType === 'bond' || s.symbolType === 'Bond' || s.symbol.length > 5) &&
+                !selectedBonds.some(sb => sb.code === s.symbol) &&
+                !poolMatches.some(pm => pm.code === s.symbol)
+              ).map((s: any) => ({
+                id: s.symbol,
+                code: s.symbol,
+                enterpriseId: '',
+                term: 'N/A',
+                interestRate: 0,
+                listedVolume: 0,
+                issueValue: 0,
+                listedValue: 0,
+                issueDate: '',
+                maturityDate: new Date().toISOString().split('T')[0],
+                interestType: 'N/A',
+                status: 'Hiệu lực'
+              }));
+            }
+          }
+        }
+
+        setSuggestions([...poolMatches, ...apiMatches]);
+      } catch (error) {
+        console.error('Error searching bonds:', error);
+      } finally {
+        setSearching(false);
+      }
+    };
+
+    const timeout = setTimeout(searchBonds, 500);
+    return () => clearTimeout(timeout);
+  }, [searchTerm, allBondsPool]);
+
+  const handleAddBond = async (bond: Bond) => {
+    // If the bond is from pool, it already has data
+    if (bond.term !== 'N/A') {
+      setComparisonBonds(prev => [...prev, bond]);
+      setIsSearching(false);
+      setSearchTerm('');
+      setSuggestions([]);
+      return;
+    }
+
+    // Otherwise fetch details
+    setSearching(true);
+    try {
+      const token = getFireantToken();
+      if (!token) {
+        setComparisonBonds(prev => [...prev, bond]);
+        return;
+      }
+      const cleanToken = cleanTokenString(token);
+      
+      const detailRes = await fetch(`/api/fireant/bonds/${bond.code}`, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${cleanToken}`
+        }
+      });
+
+      if (detailRes.ok) {
+        const b = await detailRes.json();
+        const fullBond: Bond = {
+          id: b.bondCode || bond.id,
+          code: b.bondCode || bond.code,
+          enterpriseId: '', 
+          term: String(b.tenorPeriod || 'N/A'),
+          interestRate: b.bondRate || 0,
+          listedVolume: b.currentListedVolume || 0,
+          issueValue: b.currentListedVolume || 0,
+          listedValue: b.currentListedVolume || 0,
+          issueDate: b.issueDate?.split('T')[0] || '',
+          maturityDate: b.maturityDate?.split('T')[0] || new Date().toISOString().split('T')[0],
+          interestType: b.bondRateType || 'N/A',
+          status: b.status || 'Hiệu lực'
+        };
+        setComparisonBonds(prev => [...prev, fullBond]);
+      } else {
+        setComparisonBonds(prev => [...prev, bond]);
+      }
+    } catch (e) {
+      setComparisonBonds(prev => [...prev, bond]);
+    } finally {
+      setIsSearching(false);
+      setSearchTerm('');
+      setSuggestions([]);
+      setSearching(false);
+    }
+  };
+
+  const handleRemoveBond = (bondId: string) => {
+    if (bondId === primaryBond.id) return;
+    setComparisonBonds(prev => prev.filter(b => b.id !== bondId));
+  };
+
+  const handleReset = () => {
+    setComparisonBonds([]);
+    setIsSearching(false);
+    setSearchTerm('');
+  };
+
+  const chartColors = {
+    primary: isDark ? '#5c6bc0' : '#3634B3',
+    secondary: isDark ? '#ff8a65' : '#ff7043',
+    tertiary: isDark ? '#4db6ac' : '#00897b',
+    quaternary: isDark ? '#444' : '#ccc'
+  };
+
+  const legendStyle = {
+    fontSize: 10,
+    color: isDark ? '#9ca3af' : '#666',
+    fontFamily: 'Inter',
+  };
+
+  const axisLabelStyle = {
+    fontSize: 10,
+    color: isDark ? '#9ca3af' : '#666',
+    fontFamily: 'Inter',
+    fontWeight: 'bold'
+  };
 
   const getTimelineOptions = () => {
     const years = selectedBonds.map(b => new Date(b.maturityDate).getFullYear()).sort((a, b) => a - b);
@@ -76,7 +212,8 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
           formatter: '{value}',
           color: isDark ? '#888' : '#333',
           fontWeight: 'bold',
-          margin: 15
+          margin: 15,
+          fontFamily: 'Inter'
         }
       },
       yAxis: { show: false, min: -1, max: 1 },
@@ -99,6 +236,7 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
               formatter: '{b}',
               fontWeight: 'bold',
               fontSize: 10,
+              fontFamily: 'Inter',
               backgroundColor: d.isPrimary ? '#3634B3' : (isDark ? '#222' : '#f0f0f0'),
               color: d.isPrimary ? '#fff' : (isDark ? '#eee' : '#555'),
               padding: [4, 8],
@@ -113,43 +251,128 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
     };
   };
 
+  const enterpriseChartColors = isDark 
+    ? ['#5c6bc0', '#ff8a65', '#4d5bbd', '#8e99f3', '#c5cae9', '#3949ab', '#64b5f6', '#ffb199', '#ffab91']
+    : ['#3634B3', '#ff7043', '#4fc3f7', '#7986cb', '#c5cae9', '#5c6bc0', '#8e99f3', '#ffab91', '#ff8a65'];
+
   const getScaleOptions = () => {
+    const labels = {
+      volume: 'KL phát hành',
+      value: 'Giá trị phát hành',
+      listed: 'Giá trị niêm yết'
+    };
+    
     return {
-      tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+      tooltip: { 
+        trigger: 'axis', 
+        axisPointer: { type: 'shadow' },
+        backgroundColor: isDark ? '#1e293b' : '#fff',
+        borderColor: isDark ? '#334155' : '#e2e8f0',
+        textStyle: { color: isDark ? '#f1f5f9' : '#1e293b', fontFamily: 'Inter', fontSize: 12 },
+        formatter: (params: any) => {
+          let res = `<div style="font-weight: bold; margin-bottom: 4px;">${params[0].name}</div>`;
+          params.forEach((p: any) => {
+            res += `<div style="display: flex; align-items: center; justify-content: space-between; gap: 20px;">
+              <span style="display: flex; align-items: center; gap: 6px;">
+                <span style="display: inline-block; width: 8px; height: 8px; border-radius: 50%; background-color: ${p.color};"></span>
+                <span style="font-size: 11px;">${p.seriesName}</span>
+              </span>
+              <span style="font-weight: bold; font-family: 'JetBrains Mono';">${formatNumber(p.value, 2)}</span>
+            </div>`;
+          });
+          return res;
+        }
+      },
       legend: {
         bottom: 0,
         itemWidth: 10,
         itemHeight: 10,
-        textStyle: { fontSize: 9 }
+        textStyle: legendStyle,
+        data: [labels.volume, labels.value, labels.listed]
       },
-      grid: { left: '3%', right: '4%', bottom: '15%', top: '10%', containLabel: true },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
       xAxis: {
         type: 'category',
         data: selectedBonds.map(b => b.code),
-        axisLabel: { fontSize: 10, fontWeight: 'bold' }
+        axisLabel: { ...axisLabelStyle },
+        axisLine: { lineStyle: { color: isDark ? '#333' : '#eee' } },
+        axisTick: { show: false }
       },
-      yAxis: { show: false },
+      yAxis: { 
+        type: 'value',
+        splitLine: { lineStyle: { color: isDark ? '#333' : '#eee', type: 'dashed' } },
+        axisLabel: { ...axisLabelStyle, formatter: (val: number) => formatNumber(val, 0) },
+        axisLine: { show: false }
+      },
       series: [
         {
-          name: t('issueVolumeLong'),
+          name: labels.volume,
           type: 'bar',
-          barWidth: 8,
-          data: selectedBonds.map(b => b.listedVolume / 1000000),
-          itemStyle: { color: '#3634B3' }
+          barWidth: 10,
+          data: selectedBonds.map(b => b.listedVolume / 100),
+          itemStyle: { color: enterpriseChartColors[0], borderRadius: [2, 2, 0, 0] }
         },
         {
-          name: t('issueValueShort'),
+          name: labels.value,
           type: 'bar',
-          barWidth: 8,
-          data: selectedBonds.map(b => b.issueValue / 1000),
-          itemStyle: { color: '#1a187a' }
+          barWidth: 10,
+          data: selectedBonds.map(b => b.issueValue),
+          itemStyle: { color: enterpriseChartColors[1], borderRadius: [2, 2, 0, 0] }
         },
         {
-          name: t('listedValueShort'),
+          name: labels.listed,
           type: 'bar',
-          barWidth: 8,
-          data: selectedBonds.map(b => b.listedValue / 1000),
-          itemStyle: { color: isDark ? '#444' : '#ccc' }
+          barWidth: 10,
+          data: selectedBonds.map(b => b.listedValue),
+          itemStyle: { color: enterpriseChartColors[2], borderRadius: [2, 2, 0, 0] }
+        }
+      ]
+    };
+  };
+
+  const getCouponOptions = () => {
+    return {
+      tooltip: { 
+        trigger: 'axis', 
+        axisPointer: { type: 'shadow' },
+        backgroundColor: isDark ? '#1e293b' : '#fff',
+        borderColor: isDark ? '#334155' : '#e2e8f0',
+        textStyle: { color: isDark ? '#f1f5f9' : '#1e293b', fontFamily: 'Inter', fontSize: 12 },
+        formatter: (params: any) => `${params[0].name}: <b>${formatInterestRate(params[0].value)}%</b>`
+      },
+      grid: { left: '3%', right: '4%', bottom: '15%', top: '5%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: selectedBonds.map(b => b.code),
+        axisLabel: { ...axisLabelStyle },
+        axisLine: { lineStyle: { color: isDark ? '#333' : '#eee' } },
+        axisTick: { show: false }
+      },
+      yAxis: { 
+        type: 'value',
+        splitLine: { lineStyle: { color: isDark ? '#333' : '#eee', type: 'dashed' } },
+        axisLabel: { ...axisLabelStyle, formatter: '{value}%' },
+        axisLine: { show: false }
+      },
+      series: [
+        {
+          name: 'Lãi suất',
+          type: 'bar',
+          barWidth: 20,
+          data: selectedBonds.map(b => b.interestRate),
+          itemStyle: { 
+            color: (params: any) => params.data > 10 ? '#ef4444' : '#3634B3',
+            borderRadius: [4, 4, 0, 0] 
+          },
+          label: {
+            show: true,
+            position: 'top',
+            formatter: (params: any) => `${formatInterestRate(params.value)}%`,
+            fontWeight: 'bold',
+            fontFamily: 'JetBrains Mono',
+            fontSize: 11,
+            color: isDark ? '#9ca3af' : '#64748b'
+          }
         }
       ]
     };
@@ -180,7 +403,10 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
             </div>
           </div>
           <div className="flex items-center gap-4">
-            <button className="flex items-center gap-2 text-text-muted hover:text-text-base transition-colors">
+            <button 
+              onClick={handleReset}
+              className="flex items-center gap-2 text-text-muted hover:text-text-base transition-colors"
+            >
               <RotateCcw className="h-4 w-4" />
               <span className="text-sm font-bold">{t('reset')}</span>
             </button>
@@ -196,7 +422,7 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
         {/* Content */}
         <div className="flex-1 overflow-y-auto p-8 space-y-12 transition-colors">
           {/* Selected Pills */}
-          <div className="flex flex-wrap gap-3">
+          <div className="flex flex-wrap gap-3 items-center">
             {selectedBonds.map((b) => (
               <div 
                 key={b.id}
@@ -207,18 +433,82 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
                 }`}
               >
                 <span className="text-sm font-bold tracking-tight">{b.code}</span>
-                {b.code === primaryBond.code && <Check className="h-3 w-3" />}
+                {b.code === primaryBond.code ? (
+                  <Check className="h-3 w-3" />
+                ) : (
+                  <button 
+                    onClick={() => handleRemoveBond(b.id)}
+                    className="hover:text-rose-500 transition-colors"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                )}
               </div>
             ))}
-            <button className="flex items-center gap-2 px-4 py-2 bg-transparent border border-dashed border-border-base text-text-muted rounded-full hover:border-text-highlight hover:text-text-highlight transition-all">
-              <Plus className="h-4 w-4" />
-              <span className="text-sm font-bold">{t('addBond')}</span>
-            </button>
+            
+            {!isSearching ? (
+              <button 
+                onClick={() => setIsSearching(true)}
+                className="flex items-center gap-2 px-4 py-2 bg-transparent border border-dashed border-border-base text-text-muted rounded-full hover:border-[#3634B3] hover:text-[#3634B3] transition-all"
+              >
+                <Plus className="h-4 w-4" />
+                <span className="text-sm font-bold">{t('addBond')}</span>
+              </button>
+            ) : (
+              <div className="relative">
+                <div className="flex items-center gap-2 px-4 py-1.5 bg-bg-base border border-[#3634B3] rounded-full">
+                  <Search className="h-3.5 w-3.5 text-text-muted" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                    placeholder={t('searchBondPlaceholder') || "Nhập mã..."}
+                    className="bg-transparent border-none outline-none text-sm font-bold w-32 md:w-48 text-text-base"
+                  />
+                  {searching && <Loader2 className="h-3 w-3 animate-spin text-text-muted" />}
+                  <button onClick={() => {
+                    setIsSearching(false);
+                    setSearchTerm('');
+                    setSuggestions([]);
+                  }}>
+                    <X className="h-3.5 w-3.5 text-text-muted hover:text-text-base" />
+                  </button>
+                </div>
+                
+                {suggestions.length > 0 && (
+                  <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-bg-surface border border-border-base rounded-2xl shadow-2xl z-20 max-h-64 overflow-y-auto animate-in fade-in slide-in-from-top-2 duration-200">
+                    <div className="p-2 border-b border-border-base bg-bg-base/30">
+                      <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider px-2">{t('searchResult') || "Kết quả tìm kiếm"}</span>
+                    </div>
+                    {suggestions.map(bond => (
+                      <button
+                        key={bond.id}
+                        onClick={() => handleAddBond(bond)}
+                        className="w-full text-left px-4 py-3 hover:bg-bg-base flex items-center justify-between border-b border-border-base last:border-none group transition-colors"
+                      >
+                        <div className="flex flex-col">
+                          <span className="text-sm font-bold text-text-base group-hover:text-[#3634B3] transition-colors">{bond.code}</span>
+                          <span className="text-[10px] text-text-muted font-bold uppercase">{t('bond').toUpperCase()}</span>
+                        </div>
+                        <Plus className="h-4 w-4 text-text-muted group-hover:text-[#3634B3] transition-all" />
+                      </button>
+                    ))}
+                  </div>
+                )}
+                
+                {searchTerm.length >= 2 && suggestions.length === 0 && !searching && (
+                   <div className="absolute top-full left-0 mt-2 w-full min-w-[240px] bg-bg-surface border border-border-base rounded-2xl shadow-xl z-20 p-4 text-center">
+                     <p className="text-xs font-bold text-text-muted italic">{t('noResults') || "Không tìm thấy mã phù hợp"}</p>
+                   </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Timeline */}
           <div className="space-y-6">
-            <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors">{t('maturityTimeline')}</h4>
+            <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors uppercase">{t('maturityTimeline')}</h4>
             <div className="h-[120px] bg-bg-base/20 rounded-2xl p-4 transition-colors">
               <ReactECharts option={getTimelineOptions()} style={{ height: '100%', width: '100%' }} />
             </div>
@@ -227,53 +517,49 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
           {/* Issue Scale & Coupon */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
             <div className="space-y-6">
-              <div className="flex items-baseline justify-between">
-                <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors">{t('issueScale')}</h4>
-                <span className="text-[10px] text-text-muted font-bold tracking-tighter">({t('unitBillionShort')})</span>
+              <div className="flex items-baseline justify-between border-b border-border-base pb-2">
+                <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors uppercase uppercase">{t('issueScale')}</h4>
+                <span className="text-[10px] text-text-muted font-bold tracking-tighter">(tỷ VNĐ)</span>
               </div>
-              <div className="h-[220px] transition-colors">
+              <div className="h-[250px] transition-colors">
                 <ReactECharts option={getScaleOptions()} style={{ height: '100%', width: '100%' }} />
               </div>
             </div>
             <div className="space-y-6">
-              <div className="flex items-baseline justify-between">
-                <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors">{t('couponYield')}</h4>
-                <span className="text-[10px] text-text-muted font-bold font-mono">(%)</span>
+              <div className="flex items-baseline justify-between border-b border-border-base pb-2">
+                <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors uppercase uppercase uppercase">LÃI SUẤT</h4>
+                <span className="text-[10px] text-text-muted font-bold tracking-tighter">(%)</span>
               </div>
-              <div className="flex justify-between items-end h-[220px] px-8 pb-10 transition-colors">
-                {selectedBonds.map((b) => (
-                  <div key={b.id} className="flex flex-col items-center gap-4">
-                    <span className={`text-lg font-bold ${b.interestRate > 10 ? 'text-rose-500' : 'text-text-base'}`}>
-                      {formatInterestRate(b.interestRate)}%
-                    </span>
-                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-wider">{b.code.slice(0, 3)}</span>
-                  </div>
-                ))}
+              <div className="h-[250px] transition-colors">
+                <ReactECharts option={getCouponOptions()} style={{ height: '100%', width: '100%' }} />
               </div>
             </div>
           </div>
 
           {/* Detail Table */}
           <div className="space-y-6">
-            <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors">{t('detailedSpecs')}</h4>
-            <div className="rounded-2xl border border-border-base bg-bg-surface overflow-hidden transition-colors">
-              <table className="w-full text-left border-collapse">
+            <h4 className="text-sm font-bold text-text-base tracking-widest transition-colors uppercase uppercase">{t('detailedSpecs')}</h4>
+            <div className="rounded-2xl border border-border-base bg-bg-surface overflow-hidden shadow-sm transition-colors overflow-x-auto">
+              <table className="w-full text-left border-collapse min-w-[600px]">
                 <tbody>
                   {[
                     { label: t('bondCode'), key: 'code' },
-                    { label: t('term'), key: 'term' },
-                    { label: t('interestRate'), key: 'interestRate', isRate: true },
+                    { label: 'Kỳ hạn (tháng)', key: 'term', isTerm: true },
+                    { label: 'Lãi suất (%)', key: 'interestRate', isRate: true },
                     { label: t('interestType'), key: 'interestType' },
-                    { label: t('issueDate'), key: 'issueDate' },
-                    { label: t('maturityDate'), key: 'maturityDate' },
-                    { label: t('issuedValue'), key: 'issueValue', isValue: true }
+                    { label: t('issueDate'), key: 'issueDate', isDate: true },
+                    { label: t('maturityDate'), key: 'maturityDate', isDate: true },
+                    { label: 'Giá trị phát hành (tỷ VNĐ)', key: 'issueValue', isValue: true }
                   ].map((row, idx) => (
-                    <tr key={idx} className={idx % 2 === 0 ? 'bg-bg-base/30' : ''}>
-                      <td className="px-6 py-4 text-xs font-bold text-text-muted uppercase tracking-wider transition-colors">{row.label}</td>
+                    <tr key={idx} className={idx % 2 === 0 ? 'bg-bg-base/10' : ''}>
+                      <td className="px-6 py-4 text-[10px] font-bold text-text-muted uppercase tracking-wider transition-colors w-[20%]">{row.label}</td>
                       {selectedBonds.map((b) => (
                         <td key={b.id} className="px-6 py-4 text-sm font-bold text-text-base transition-colors">
-                          {row.isRate ? `${formatInterestRate(b.interestRate)}%` : 
-                           row.isValue ? `${formatNumber(b.issueValue, 0)} ${t('unitBillionShort')}` :
+                          {row.isRate ? formatNumber(b.interestRate, 2) : 
+                           row.isValue ? formatNumber(b.issueValue, 0) :
+                           row.isTerm ? b.term.replace(/[^0-9]/g, '') :
+                           row.isDate ? formatDate((b as any)[row.key]) :
+                           row.key === 'interestType' ? (b.interestType === 'Fixed' ? t('fixed') : b.interestType === 'Floating' ? t('floating') : b.interestType) :
                            (b as any)[row.key]}
                         </td>
                       ))}
@@ -283,21 +569,6 @@ export default function BondComparisonPopup({ primaryBond, onClose, onBack }: Bo
               </table>
             </div>
           </div>
-        </div>
-
-        {/* Footer */}
-        <div className="p-6 border-t border-border-base flex items-center justify-end gap-3 bg-bg-base/20 transition-colors">
-          <button 
-            onClick={onClose}
-            className="px-6 py-2.5 text-sm font-bold text-text-base hover:bg-bg-base rounded-xl transition-all"
-          >
-            {t('cancel')}
-          </button>
-          <button 
-            className="px-8 py-2.5 bg-[#3634B3] text-white text-sm font-bold rounded-xl shadow-lg shadow-[#3634B3]/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
-          >
-            {t('tradeNow')}
-          </button>
         </div>
       </div>
     </div>

@@ -1,22 +1,40 @@
 import { useState, FormEvent, useEffect } from 'react';
 import { NewsItem } from '../types';
-import { ChevronLeft, Calendar, Share2, MessageCircle, Bookmark, Send, Volume2, VolumeX, ExternalLink } from 'lucide-react';
+import { ChevronLeft, Share2, MessageCircle, Bookmark, Send, Volume2, VolumeX, ExternalLink, Loader2 } from 'lucide-react';
 import { formatDate } from '../utils/format';
 import { useTheme } from '../ThemeContext';
 import { useLanguage } from '../LanguageContext';
+import { fetchNewsDetail } from '../services/newsService';
 
 interface NewsDetailViewProps {
   news: NewsItem;
   onBack: () => void;
 }
 
-export default function NewsDetailView({ news, onBack }: NewsDetailViewProps) {
+export default function NewsDetailView({ news: initialNews, onBack }: NewsDetailViewProps) {
   const { effectiveTheme } = useTheme();
   const { t, language } = useLanguage();
-  const isDark = effectiveTheme === 'dark';
+  const [news, setNews] = useState<NewsItem>(initialNews);
+  const [isLoading, setIsLoading] = useState(false);
   const [comment, setComment] = useState('');
   const [isSaved, setIsSaved] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [imageError, setImageError] = useState(false);
+
+  // Fetch full content on mount
+  useEffect(() => {
+    const loadFullContent = async () => {
+      setIsLoading(true);
+      setImageError(false);
+      const fullNews = await fetchNewsDetail(initialNews.id);
+      if (fullNews) {
+        setNews(fullNews);
+      }
+      setIsLoading(false);
+    };
+
+    loadFullContent();
+  }, [initialNews.id]);
 
   // Stop speech when component unmounts
   useEffect(() => {
@@ -153,6 +171,26 @@ export default function NewsDetailView({ news, onBack }: NewsDetailViewProps) {
     setComment('');
   };
 
+  // Process content to extract first image as cover
+  let displayContent = news.content || news.summary || "";
+  let currentCoverImage = news.image;
+
+  if (currentCoverImage) {
+    const escaped = currentCoverImage.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+    displayContent = displayContent.replace(
+      new RegExp(`<img[^>]+src=["']${escaped}["'][^>]*>`, 'i'),
+      ''
+    );
+  }
+  
+  // Filter out images that are already displayed as cover or present in content
+  const contentImages = Array.from(displayContent.matchAll(/<img[^>]+(?:src|data-src|srcset)=["']([^"'\s>]+)["']/gi)).map(m => m[1]);
+  const extraImages = (news.images || []).filter(img => 
+    img !== currentCoverImage && 
+    !contentImages.some(contentImg => contentImg.includes(img) || img.includes(contentImg))
+  );
+
   return (
     <div className="max-w-4xl mx-auto p-8 animate-in fade-in slide-in-from-left-4 duration-700 transition-colors">
       <button 
@@ -163,91 +201,97 @@ export default function NewsDetailView({ news, onBack }: NewsDetailViewProps) {
       </button>
 
       <article className="bg-bg-surface rounded-3xl border border-border-base shadow-sm overflow-hidden p-8 md:p-12 transition-colors">
-        <header className="mb-10">
-          <div className="flex items-center gap-3 mb-4">
-            <span className="px-4 py-1.5 bg-[#3634B3]/5 text-xs font-bold text-[#3634B3] uppercase tracking-widest rounded-full transition-colors">
-              {news.source}
-            </span>
-            <div className="flex items-center gap-1.5 text-xs text-text-muted font-medium whitespace-nowrap transition-colors">
-              <Calendar className="h-3.5 w-3.5" />
-              {formatDate(news.date)}
-            </div>
-          </div>
-          
-          <h1 className="text-2xl md:text-3xl font-bold text-text-base leading-tight mb-8 transition-colors">
+        <header className="mb-8">
+          <h1 className="text-2xl md:text-3xl font-bold text-text-base leading-tight mb-6 transition-colors">
             {news.title}
           </h1>
 
-          <div className="flex items-center justify-between py-6 border-y border-border-base transition-colors">
-            <div className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-full bg-[#3634B3] flex items-center justify-center text-white font-bold text-xs shadow-lg shadow-[#3634B3]/20 transition-colors">
-                {news.source.charAt(0)}
-              </div>
-              <div>
-                <p className="text-sm font-bold text-text-base leading-none transition-colors">{news.author}</p>
-              </div>
+          <div className="flex items-center justify-between pb-6">
+            {/* LEFT */}
+            <div className="flex flex-col gap-1">
+              {/* Nguồn + Ngày */}
+              <p className="text-sm text-text-base">
+                <span className="font-semibold">{news.source || 'Không rõ nguồn'}</span>
+                <span className="mx-2 text-text-muted">•</span>
+                <span className="text-text-muted text-xs">{formatDate(news.date)}</span>
+              </p>
+
+              {/* Tác giả */}
+              <p className="text-xs text-text-muted">{news.author || 'Đang cập nhật'}</p>
             </div>
 
+            {/* RIGHT - Speech */}
             <button
               onClick={toggleSpeech}
               title={isSpeaking ? t("stopReading") : t("listenArticle")}
-              className={`p-3 rounded-full transition-all duration-300 ${
+              className={`p-2.5 rounded-xl transition-all duration-300 ${
                 isSpeaking 
-                  ? 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400 shadow-inner' 
-                  : 'bg-[#3634B3]/5 text-[#3634B3] hover:bg-[#3634B3] hover:text-white hover:shadow-lg'
+                  ? 'bg-red-50 dark:bg-red-900/20 text-red-500 dark:text-red-400' 
+                  : 'bg-[#3634B3]/5 text-[#3634B3] hover:bg-[#3634B3] hover:text-white'
               }`}
             >
               {isSpeaking ? (
-                <VolumeX className="h-5 w-5 animate-pulse" />
+                <VolumeX className="h-4 w-4 animate-pulse" />
               ) : (
-                <Volume2 className="h-5 w-5" />
+                <Volume2 className="h-4 w-4" />
               )}
             </button>
           </div>
         </header>
 
-        <div className="relative aspect-video rounded-3xl overflow-hidden mb-12 shadow-2xl shadow-gray-200 dark:shadow-none bg-bg-base transition-colors">
-          <img 
-            src={news.image} 
-            alt={news.title} 
-            className="w-full h-full object-cover"
-            referrerPolicy="no-referrer"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = `https://picsum.photos/seed/${news.title}/1200/800`;
-            }}
-          />
-        </div>
-
-        <div className="prose prose-blue dark:prose-invert max-w-none">
-          <div className="text-base text-text-base leading-relaxed font-normal whitespace-pre-wrap transition-colors">
-            {news.content || news.summary || t('updateContent')}
+        {!imageError && (news.image || currentCoverImage) && (
+          <div className="relative aspect-video rounded-2xl overflow-hidden mb-8 bg-bg-base border border-border-base transition-colors">
+            <img 
+              src={currentCoverImage || news.image} 
+              alt={news.title} 
+              className="w-full h-full object-cover"
+              referrerPolicy="no-referrer"
+              onError={() => setImageError(true)}
+            />
           </div>
-        </div>
+        )}
 
-        <div className="mt-16 pt-8 border-t border-border-base italic text-sm text-text-muted transition-colors">
-          {news.url && (
-            <p className="mb-4">
-              {t('source')}: <span className="font-bold">{news.source}</span>
-              <a href={news.url} target="_blank" rel="noopener noreferrer" className="ml-2 text-[#3634B3] hover:underline inline-flex items-center gap-1 transition-colors">
-                ({t('readOriginal')} <ExternalLink className="h-3 w-3" />)
-              </a>
-            </p>
+        <div className="prose prose-blue dark:prose-invert max-w-none mb-12">
+          {isLoading ? (
+            <div className="flex flex-col items-center justify-center py-20 gap-4">
+              <Loader2 className="h-8 w-8 text-[#3634B3] animate-spin" />
+              <p className="text-sm font-medium text-text-muted">{t('loading')}...</p>
+            </div>
+          ) : (
+            <div 
+              className="text-base text-text-base leading-relaxed font-normal transition-colors fireant-content"
+              dangerouslySetInnerHTML={{ __html: displayContent || t('updateContent') }}
+            />
+          )}
+          
+          {extraImages.length > 0 && (
+            <div className="mt-8 space-y-6">
+              {extraImages.map((img, idx) => (
+                <div key={idx} className="rounded-2xl overflow-hidden border border-border-base transition-colors bg-bg-base">
+                  <img 
+                    src={img} 
+                    alt={`${news.title} - extra ${idx + 1}`} 
+                    className="w-full h-auto object-contain"
+                    referrerPolicy="no-referrer"
+                  />
+                </div>
+              ))}
+            </div>
           )}
         </div>
 
-        <div className="mt-8 pt-8 border-t border-border-base transition-colors">
+        <div className="pt-8 border-t border-border-base transition-colors">
           <div className="flex flex-wrap items-center justify-between gap-6 mb-12">
             <div className="flex items-center gap-4">
               <button 
                 onClick={handleShare}
-                className="flex items-center gap-2 px-6 py-3 bg-[#3634B3] text-white rounded-2xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg hover:shadow-[#3634B3]/25 transition-all active:translate-y-0"
+                className="flex items-center gap-2 px-6 py-2.5 bg-[#3634B3] text-white rounded-xl font-bold text-sm hover:translate-y-[-2px] hover:shadow-lg transition-all active:translate-y-0"
               >
                 <Share2 className="h-4 w-4" /> {t('share')}
               </button>
               <button 
                 onClick={handleSave}
-                className={`flex items-center gap-2 px-6 py-3 rounded-2xl font-bold text-sm transition-all border ${
+                className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-bold text-sm transition-all border ${
                   isSaved 
                     ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400 border-amber-200 dark:border-amber-400/30' 
                     : 'bg-bg-surface text-text-muted border-border-base hover:border-[#3634B3] hover:text-[#3634B3]'

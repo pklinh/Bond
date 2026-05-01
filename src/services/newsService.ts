@@ -4,6 +4,13 @@ const NEWS_API_URL = '/api/news';
 const CACHE_KEY = 'fireant_news_cache';
 const CACHE_TIME_KEY = 'fireant_news_last_update';
 
+const extractFirstLinkFromContent = (html: string) => {
+  if (!html) return null;
+
+  const match = html.match(/<a[^>]+href=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+};
+
 const SEED_NEWS: NewsItem[] = [
   {
     id: 'seed-1',
@@ -42,6 +49,12 @@ const SEED_NEWS: NewsItem[] = [
     category: 'Doanh nghiệp'
   }
 ];
+
+const extractFirstImageFromContent = (html: string) => {
+  if (!html) return null;
+  const match = html.match(/<img[^>]+src=["']([^"']+)["']/i);
+  return match ? match[1] : null;
+};
 
 export const fetchNewsData = async (): Promise<NewsItem[]> => {
   try {
@@ -107,19 +120,35 @@ export const fetchNewsData = async (): Promise<NewsItem[]> => {
       const title = item.title || item.header || item.subject || item.Title || '';
       const summary = item.summary || item.description || item.abstract || item.Summary || '';
       const date = item.date || item.pubDate || item.time || item.createdAt || new Date().toISOString();
-      const image = item.image || item.imageUrl || item.thumbnail || item.Image || '';
+      const rawImage = item.image || item.imageUrl || item.thumbnail || item.Image || '';
+      const contentImage = extractFirstImageFromContent(item.content || '');
+      const finalImage =
+            rawImage && rawImage.trim() !== ''
+              ? rawImage
+              : contentImage && contentImage.trim() !== ''
+              ? contentImage
+              : null;
       const source = item.source || item.category || item.provider || item.Source || 'Tin tức';
+      const contentLink = extractFirstLinkFromContent(item.content || '');
       
       return {
         id: item.id || item.bondCode || `news-${index}-${Date.now()}`,
         source,
+        sourceUrl: item.sourceUrl,
         title,
         summary,
         content: item.content || item.body || item.text || summary || '',
         author: item.author || item.writer || item.Source || 'Fireant',
-        image: image || `https://picsum.photos/seed/${encodeURIComponent(title.slice(0, 10))}/800/600`,
+        image: finalImage || `https://picsum.photos/seed/${encodeURIComponent(title.slice(0, 10))}/800/600`,
         date,
-        url: item.url || item.link || item.Url || '#',
+        url:
+          item.url || '#', // giữ lại cho internal
+        originalUrl:
+          contentLink ||
+          item.originalUrl ||
+          item.link ||
+          item.Url ||
+          null,
         category: source
       };
     }).sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
@@ -137,6 +166,32 @@ export const fetchNewsData = async (): Promise<NewsItem[]> => {
     const cached = getCachedNews();
     if (cached) return cached;
     return SEED_NEWS;
+  }
+};
+
+export const fetchNewsDetail = async (id: string): Promise<NewsItem | null> => {
+  try {
+    const response = await fetch(`${NEWS_API_URL}/${id}`);
+    if (!response.ok) return null;
+    
+    const data = await response.json();
+    if (!data || data.error) return null;
+
+    // 🔥 DEBUG LINK
+    console.log("DETAIL LINK:", data.originalUrl, data.link, data.url);
+    
+    return {
+      ...data,
+      originalUrl:
+        extractFirstLinkFromContent(data.content || '') ||
+        data.originalUrl ||
+        data.link ||
+        data.Url ||
+        null
+    };
+  } catch (error) {
+    console.error(`Error fetching news detail for ${id}:`, error);
+    return null;
   }
 };
 

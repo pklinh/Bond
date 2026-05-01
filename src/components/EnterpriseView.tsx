@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
 import { Search, Filter, ChevronRight, ChevronLeft, ArrowUpDown, Download, Share2, Info } from 'lucide-react';
-import { mockBonds } from '../mockData';
 import { Enterprise, Bond } from '../types';
 import BondDetailPopup from './BondDetailPopup';
 import ReactECharts from 'echarts-for-react';
@@ -43,6 +42,7 @@ export default function EnterpriseView({
   const [bondTermFilter, setBondTermFilter] = useState('All');
   const [bondInterestSort, setBondInterestSort] = useState('None');
   const [financialData, setFinancialData] = useState<any>(null);
+  const [enterpriseProfile, setEnterpriseProfile] = useState<any>(null);
   const [loadingFinancial, setLoadingFinancial] = useState(false);
   const bondsPerPage = 10;
   const enterprisesPerPage = 10;
@@ -222,6 +222,38 @@ export default function EnterpriseView({
   }, [selectedEnterprise?.ticker]);
 
   useEffect(() => {
+    const fetchProfile = async () => {
+      if (!selectedEnterprise?.ticker) {
+        setEnterpriseProfile(null);
+        return;
+      }
+
+      const symbol = selectedEnterprise.ticker;
+      try {
+        const token = getFireantToken();
+        if (!token) return;
+
+        const cleanToken = cleanTokenString(token);
+        const response = await fetch(`/api/fireant/symbols/${encodeURIComponent(symbol)}/profile`, {
+          headers: {
+            'Accept': 'application/json',
+            'Authorization': `Bearer ${cleanToken}`
+          }
+        });
+
+        if (response.ok) {
+          const profile = await response.json();
+          setEnterpriseProfile(profile);
+        }
+      } catch (error) {
+        console.error('Error fetching enterprise profile:', error);
+      }
+    };
+
+    fetchProfile();
+  }, [selectedEnterprise?.ticker]);
+
+  useEffect(() => {
     let isMounted = true;
     const fetchData = async () => {
       if (!cachedData) {
@@ -349,7 +381,7 @@ export default function EnterpriseView({
   const paginatedEnterprises = sortedEnterprises.slice((enterprisePage - 1) * enterprisesPerPage, enterprisePage * enterprisesPerPage);
 
   const enterpriseBonds = selectedEnterprise 
-    ? (issuerBonds.length > 0 ? issuerBonds : mockBonds.filter(b => b.enterpriseId === selectedEnterprise.id))
+    ? (issuerBonds.length > 0 ? issuerBonds : [])
     : [];
 
   const filteredSortedBonds = [...enterpriseBonds]
@@ -574,7 +606,7 @@ export default function EnterpriseView({
 
   if (selectedEnterprise) {
     return (
-      <div className="p-6 space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500 transition-colors">
         <div className="flex items-center gap-2 text-[10px] font-bold text-text-muted uppercase tracking-widest">
           <button onClick={() => setSelectedEnterprise(null)} className="hover:text-text-highlight">{t('enterprise').toUpperCase()}</button>
           <ChevronRight className="h-3 w-3" />
@@ -583,7 +615,11 @@ export default function EnterpriseView({
 
         <div className="flex items-start justify-between">
           <div className="space-y-2">
-            <h2 className="text-4xl font-bold text-text-base tracking-tight">{selectedEnterprise.name} ({selectedEnterprise.ticker})</h2>
+            <h2 className="text-4xl font-bold text-text-base tracking-tight">
+              {language === 'en' && enterpriseProfile?.internationalName 
+                ? enterpriseProfile.internationalName 
+                : t(selectedEnterprise.name as any, selectedEnterprise.ticker)} ({selectedEnterprise.ticker})
+            </h2>
             
             {/* Financial Badges Section */}
             <div key={`financial-badges-${selectedEnterprise.ticker}`} className="flex flex-wrap gap-2 pt-1">
@@ -743,7 +779,7 @@ export default function EnterpriseView({
         ) : (
           <>
             {/* KPI Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
               <div className="bg-bg-surface p-5 rounded-2xl border border-border-base shadow-sm hover:shadow-md transition-all group text-center flex flex-col items-center justify-center min-h-[140px] transition-colors">
                 <p className="text-base font-bold text-text-muted mb-2">{t('bondCodeCount')}</p>
                 <span className="text-3xl font-bold text-text-base mb-1 transition-colors">{issuerBonds.length > 0 ? issuerBonds.length : selectedEnterprise.bondCount}</span>
@@ -767,7 +803,7 @@ export default function EnterpriseView({
             </div>
 
         {/* Charts Section */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
           <div 
             className="bg-bg-surface p-4 rounded-2xl border border-border-base shadow-sm transition-colors"
           >
@@ -867,7 +903,7 @@ export default function EnterpriseView({
                   <tr 
                     key={bond.id} 
                     onClick={() => {
-                      setBondEnterpriseName(selectedEnterprise.name);
+                      setBondEnterpriseName(language === 'en' && enterpriseProfile?.internationalName ? enterpriseProfile.internationalName : selectedEnterprise.name);
                       setSelectedBond(bond);
                     }}
                     className={`cursor-pointer transition-colors group ${idx % 2 === 1 ? 'bg-bg-base/30' : 'bg-bg-surface'} hover:bg-indigo-50 dark:hover:bg-indigo-900/20`}
@@ -1057,10 +1093,9 @@ export default function EnterpriseView({
             >
               <option value="All" className="bg-bg-surface">{t('allIndustries')}</option>
               {Array.from(new Set(enterprises.map(e => e.industry)))
-                .filter(industry => industry !== t('others'))
                 .sort()
                 .map(industry => (
-                  <option key={industry} value={industry} className="bg-bg-surface">{industry}</option>
+                  <option key={industry} value={industry} className="bg-bg-surface">{t(industry as any)}</option>
                 ))
               }
             </select>
@@ -1107,9 +1142,9 @@ export default function EnterpriseView({
                   </td>
                   <td className="px-6 py-5 text-left">
                     <div className="space-y-1">
-                      <p className="text-sm font-bold text-text-base group-hover:text-text-highlight transition-colors">{enterprise.name}</p>
+                      <p className="text-sm font-bold text-text-base group-hover:text-text-highlight transition-colors">{t(enterprise.name as any, enterprise.ticker)}</p>
                       <p className="text-[10px] font-bold text-text-muted tracking-wider group-hover:text-text-highlight transition-colors">
-                        {enterprise.industry ? t(enterprise.industry) : ''}
+                        {t(enterprise.industry as any)}
                       </p>
                     </div>
                   </td>

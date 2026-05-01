@@ -21,6 +21,7 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
   const [newsList, setNewsList] = useState<NewsItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [imageErrors, setImageErrors] = useState<Record<string, boolean>>({});
   const loadingRef = useRef(false);
 
   // Initialize from cache immediately
@@ -64,7 +65,7 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
       setLoading(false);
       loadingRef.current = false;
     }
-  }, [newsList.length]);
+  }, [newsList.length, t]);
 
   useEffect(() => {
     loadData();
@@ -85,18 +86,34 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const getSourceInitials = (source: string) => {
+    if (!source) return 'FA';
+    const words = source.split(' ');
+    if (words.length >= 2) {
+      return (words[0].charAt(0) + words[1].charAt(0)).toUpperCase();
+    }
+    return source.substring(0, 2).toUpperCase();
+  };
+
+  const handleImageError = (id: string) => {
+    setImageErrors(prev => ({ ...prev, [id]: true }));
+  };
+
   const NewsSkeleton = () => (
-    <div className="bg-bg-surface rounded-2xl border border-border-base shadow-sm overflow-hidden flex flex-col h-full animate-pulse transition-colors">
-      <div className="h-48 bg-bg-base/50" />
-      <div className="p-5 flex-1 flex flex-col gap-3">
-        <div className="h-4 w-1/4 bg-bg-base/50 rounded" />
+    <div className="bg-bg-surface rounded-3xl border border-border-base shadow-sm overflow-hidden flex flex-col h-[520px] animate-pulse transition-colors">
+      <div className="h-64 bg-bg-base/50" />
+      <div className="p-6 flex-1 flex flex-col gap-4">
+        <div className="h-4 w-1/4 bg-bg-base/50 rounded-full" />
         <div className="h-6 w-full bg-bg-base/50 rounded" />
         <div className="h-6 w-3/4 bg-bg-base/50 rounded" />
         <div className="h-4 w-full bg-bg-base/30 rounded mt-2" />
         <div className="h-4 w-5/6 bg-bg-base/30 rounded" />
-        <div className="mt-auto pt-4 flex justify-between">
-          <div className="h-4 w-20 bg-bg-base/50 rounded" />
-          <div className="h-4 w-24 bg-bg-base/50 rounded" />
+        <div className="mt-auto pt-6 border-t border-border-base flex justify-between">
+          <div className="space-y-2">
+            <div className="h-3 w-20 bg-bg-base/50 rounded" />
+            <div className="h-3 w-16 bg-bg-base/50 rounded" />
+          </div>
+          <div className="h-4 w-16 bg-bg-base/50 rounded" />
         </div>
       </div>
     </div>
@@ -114,9 +131,9 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
         </div>
         {!loading && (
           <button 
-            onClick={() => loadData()}
+            onClick={() => loadData(false, true)}
             disabled={loading}
-            className="p-2 text-text-muted hover:text-[#3634B3] transition-colors"
+            className="p-2 text-text-muted hover:text-[#3634B3] transition-all hover:rotate-180 duration-500"
             title={t('refresh')}
           >
             <RefreshCw className={`h-5 w-5 ${loadingRef.current ? 'animate-spin' : ''}`} />
@@ -125,7 +142,7 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
       </div>
 
       {loading && newsList.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {[...Array(6)].map((_, i) => <NewsSkeleton key={i} />)}
         </div>
       ) : error && newsList.length === 0 ? (
@@ -135,7 +152,7 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
           </div>
           <p className="text-text-base font-bold mb-4">{error}</p>
           <button 
-            onClick={() => loadData()}
+            onClick={() => loadData(false, true)}
             className="flex items-center gap-2 px-6 py-3 bg-[#3634B3] text-white rounded-xl font-bold hover:opacity-90 transition-all shadow-lg shadow-[#3634B3]/20"
           >
             <RefreshCw className="h-4 w-4" /> {t('retry')}
@@ -149,64 +166,74 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
           <p className="text-text-muted font-medium transition-colors">{t('noNewsAvailable')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {currentNews.map((news) => (
-            <div 
-              key={news.id} 
-              onClick={() => onSelectNews(news)}
-              className="bg-bg-surface rounded-2xl border border-border-base shadow-sm overflow-hidden hover:shadow-md hover:border-[#3634B3]/20 transition-all cursor-pointer group flex flex-col h-full"
-            >
-              <div className="relative h-48 overflow-hidden bg-bg-base">
-                <img 
-                  src={news.image} 
-                  alt={news.title} 
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  referrerPolicy="no-referrer"
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = `https://picsum.photos/seed/${news.title}/800/600`;
-                  }}
-                />
-                <div className="absolute top-3 left-3">
-                  <span className="px-3 py-1 bg-bg-surface/90 backdrop-blur-sm text-[10px] font-bold text-[#3634B3] uppercase tracking-wider rounded-full shadow-sm transition-colors">
-                    {news.source}
-                  </span>
-                </div>
-              </div>
-              <div className="p-5 flex-1 flex flex-col">
-                <div className="mb-4">
-                  <h3 className="text-base font-bold text-text-base leading-tight group-hover:text-[#3634B3] transition-colors line-clamp-2 md:h-[2.6rem]">
-                    {news.title}
-                  </h3>
-                  <p className="text-sm text-text-muted mt-2 line-clamp-2 leading-relaxed h-[2.5rem] transition-colors">
-                    {news.summary}
-                  </p>
-                </div>
-                <div className="mt-auto flex items-center justify-between pt-4 border-t border-border-base transition-colors">
-                  <div className="flex flex-col">
-                    <span className="text-[10px] text-text-muted font-bold uppercase tracking-tight line-clamp-1 transition-colors">
-                      {news.author}
-                    </span>
-                    <span className="text-[10px] text-text-muted font-medium mt-0.5 transition-colors">
-                      {formatDate(news.date)}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          {currentNews.map((news) => {
+            const hasImage = news.image && !imageErrors[news.id];
+            
+            return (
+              <div 
+                key={news.id} 
+                onClick={() => onSelectNews(news)}
+                className="bg-bg-surface rounded-3xl border border-border-base shadow-sm overflow-hidden hover:shadow-xl hover:-translate-y-1 transition-all duration-300 cursor-pointer group flex flex-col h-[520px]"
+              >
+                <div className="relative h-64 w-full bg-[#3634B3]">
+                  <img 
+                    src={news.image || `https://picsum.photos/seed/${news.id}/800/600`}
+                    alt={news.title} 
+                    className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+
+                      // Nếu ảnh chính lỗi → fallback ảnh random (KHÔNG dùng avatar chữ nữa)
+                      if (!target.src.includes('picsum.photos')) {
+                        target.src = `https://picsum.photos/seed/${news.id}/800/600`;
+                      }
+                    }}
+                  />
+                  <div className="absolute top-4 left-4">
+                    <span className="px-5 py-1.5 bg-[#000000]/30 backdrop-blur-md text-[11px] font-bold text-white uppercase tracking-wider rounded-full border border-white/20 transition-colors">
+                      {news.source}
                     </span>
                   </div>
-                  <div className="flex items-center text-[#3634B3] text-[10px] font-bold uppercase tracking-wider group-hover:gap-2 transition-all">
-                    {t('readMore')} <ChevronRight className="h-3 w-3" />
+                </div>
+                
+                <div className="p-6 flex-1 flex flex-col">
+                  <div className="mb-4">
+                    <h3 className="text-lg font-bold text-text-base leading-snug group-hover:text-[#3634B3] transition-colors line-clamp-2 min-h-[3rem]">
+                      {news.title}
+                    </h3>
+                    <p className="text-sm text-text-muted mt-3 line-clamp-3 leading-relaxed transition-colors">
+                      {news.summary}
+                    </p>
+                  </div>
+                  
+                  <div className="mt-auto pt-6 border-t border-border-base transition-colors flex items-center justify-between">
+                    <div className="space-y-1">
+                      <p className="text-[11px] text-text-muted font-bold uppercase tracking-tight line-clamp-1 transition-colors">
+                        {news.author}
+                      </p>
+                      <p className="text-[11px] text-text-muted transition-colors">
+                        {formatDate(news.date)}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1 text-[#3634B3] text-[11px] font-bold uppercase tracking-wider group-hover:translate-x-1 transition-all">
+                      {t('readMore')} <ChevronRight className="h-3 w-3" />
+                    </div>
                   </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
       {!loading && !error && totalPages > 1 && (
-        <div className="flex items-center justify-center gap-2 mt-8 pb-8">
+        <div className="flex items-center justify-center gap-2 mt-8 pb-12">
           <button
             onClick={() => handlePageChange(Math.max(1, currentPage - 1))}
             disabled={currentPage === 1}
-            className="p-2 rounded-xl border border-border-base text-text-muted disabled:opacity-30 bg-bg-base/50 hover:bg-bg-base transition-all"
+            className="w-12 h-12 flex items-center justify-center rounded-2xl border border-border-base text-text-muted disabled:opacity-30 bg-bg-base/30 hover:bg-bg-base transition-all"
           >
             <ChevronLeft className="h-5 w-5" />
           </button>
@@ -219,9 +246,9 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
                 <button
                   key={page}
                   onClick={() => handlePageChange(page)}
-                  className={`w-10 h-10 rounded-xl text-sm font-bold transition-all border ${
+                  className={`w-12 h-12 rounded-2xl text-sm font-bold transition-all border ${
                     currentPage === page
-                      ? 'bg-[#3634B3] text-white border-transparent shadow-lg shadow-[#3634B3]/20'
+                      ? 'bg-[#3634B3] text-white border-transparent shadow-xl shadow-[#3634B3]/20 scale-110 z-10'
                       : 'bg-bg-surface text-text-base border-border-base hover:border-[#3634B3] hover:text-[#3634B3]'
                   }`}
                 >
@@ -229,7 +256,7 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
                 </button>
               );
             } else if (page === currentPage - 2 || page === currentPage + 2) {
-              return <span key={page} className="px-1 text-text-muted">...</span>;
+              return <span key={page} className="px-1 text-text-muted font-bold">...</span>;
             }
             return null;
           })}
@@ -237,7 +264,7 @@ export default function NewsListView({ onSelectNews }: NewsListViewProps) {
           <button
             onClick={() => handlePageChange(Math.min(totalPages, currentPage + 1))}
             disabled={currentPage === totalPages}
-            className="p-2 rounded-xl border border-border-base text-text-muted disabled:opacity-30 bg-bg-base/50 hover:bg-bg-base transition-all"
+            className="w-12 h-12 flex items-center justify-center rounded-2xl border border-border-base text-text-muted disabled:opacity-30 bg-bg-base/30 hover:bg-bg-base transition-all"
           >
             <ChevronRight className="h-5 w-5" />
           </button>

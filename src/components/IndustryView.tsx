@@ -34,15 +34,13 @@ export default function IndustryView({ industry }: IndustryViewProps) {
       setError(null);
       try {
         const token = getFireantToken();
-        if (!token) {
-          throw new Error(t('tokenError401'));
-        }
-
-        const cleanToken = cleanTokenString(token);
-        const headers = {
-          'Accept': 'application/json',
-          'Authorization': `Bearer ${cleanToken}`
+        const cleanToken = token ? cleanTokenString(token) : undefined;
+        const headers: any = {
+          'Accept': 'application/json'
         };
+        if (cleanToken) {
+          headers['Authorization'] = `Bearer ${cleanToken}`;
+        }
 
         // Fetch Industry Stats
         let statsUrl = '/api/fireant/bonds/stats/industries?top=10&level=2';
@@ -134,10 +132,14 @@ export default function IndustryView({ industry }: IndustryViewProps) {
 
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
 
-  const industryLabels: Record<IndustryType, string> = {
-    'Banking': t('Banking'),
-    'Securities': t('Securities'),
-    'Real Estate': t('RealEstate')
+  const getIndustryLabel = (ind: string) => {
+    // Basic translations for the three main tabs
+    if (ind === 'Banking') return t('Banking');
+    if (ind === 'Securities') return t('Securities');
+    if (ind === 'Real Estate') return t('Real Estate');
+    
+    // Fallback to general translation for any other industry string
+    return t(ind as any);
   };
 
   const chartColors = {
@@ -214,7 +216,10 @@ export default function IndustryView({ industry }: IndustryViewProps) {
       tooltip: { 
         trigger: 'axis',
         formatter: (params: any) => {
-          return `${params[0].name}<br/>${params[0].marker}${params[0].seriesName}: ${formatNumber(params[0].value, 0)} Tỷ VND`;
+          const symbol = params[0].name;
+          const issuer = rankingData.find(d => d.issuerSymbol === symbol);
+          const displayName = issuer ? t(issuer.issuerName as any, issuer.issuerSymbol) : symbol;
+          return `${displayName}<br/>${params[0].marker}${params[0].seriesName}: ${formatNumber(params[0].value, 0)} Tỷ VND`;
         }
       },
       grid: { left: '3%', right: '8%', top: '3%', bottom: '3%', containLabel: true },
@@ -285,7 +290,10 @@ export default function IndustryView({ industry }: IndustryViewProps) {
       tooltip: { 
         trigger: 'item',
         formatter: (params: any) => {
-          return `${params.name}<br/>${t('marketShare')}: ${params.percent}%<br/>${t('remainingDebtTitle')}: ${formatNumber(Math.round(params.value / 1000000000), 0)} ${t('unitBillion').replace('Đơn vị: ', '').replace('Unit: ', '')}`;
+          const symbol = params.name;
+          const issuer = rankingData.find(d => d.issuerSymbol === symbol);
+          const displayName = (symbol === t('others')) ? t('others') : (issuer ? t(issuer.issuerName as any, issuer.issuerSymbol) : symbol);
+          return `${displayName}<br/>${t('marketShare')}: ${params.percent}%<br/>${t('remainingDebtTitle')}: ${formatNumber(Math.round(params.value / 1000000000), 0)} ${t('unitBillion').replace('Đơn vị: ', '').replace('Unit: ', '')}`;
         }
       },
       legend: [
@@ -387,7 +395,9 @@ export default function IndustryView({ industry }: IndustryViewProps) {
         trigger: 'axis',
         axisPointer: { type: 'shadow' },
         formatter: (params: any) => {
-          let res = params[0].name;
+          const symbol = params[0].name;
+          const issuer = rankingData.find(d => d.issuerSymbol === symbol);
+          let res = issuer ? t(issuer.issuerName as any, issuer.issuerSymbol) : symbol;
           params.forEach((p: any) => {
             res += `<br/>${p.marker}${p.seriesName}: ${formatNumber(p.value, 0)}${p.seriesName === t('remainingDebtTitle') ? ' ' + t('unitBillion').replace('Đơn vị: ', '').replace('Unit: ', '') : ''}`;
           });
@@ -449,7 +459,7 @@ export default function IndustryView({ industry }: IndustryViewProps) {
     return (
       <div className="p-6 flex flex-col items-center justify-center min-h-[400px] space-y-4">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#3634B3]"></div>
-        <p className="text-text-muted font-medium">{t('loadingIndustryData')} {industryLabels[industry]}...</p>
+        <p className="text-text-muted font-medium">{t('loadingIndustryData')} {getIndustryLabel(industry)}...</p>
       </div>
     );
   }
@@ -477,13 +487,13 @@ export default function IndustryView({ industry }: IndustryViewProps) {
   }
 
   return (
-    <div className="p-6 space-y-6 transition-colors duration-300">
+    <div className="space-y-6 transition-colors duration-300">
       <div>
-        <h2 className="text-2xl font-bold text-text-base tracking-tight transition-colors">{t('marketTitle')} {industryLabels[industry]}</h2>
+        <h2 className="text-2xl font-bold text-text-base tracking-tight transition-colors">{t('marketTitle')} {getIndustryLabel(industry)}</h2>
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
         {kpis.map((kpi, idx) => (
           <div key={idx} className="bg-bg-surface p-5 rounded-2xl border border-border-base shadow-sm hover:shadow-md transition-all group text-center flex flex-col items-center justify-center min-h-[140px]">
             <p className="text-base font-bold text-text-muted mb-2">{kpi.label}</p>
@@ -493,7 +503,7 @@ export default function IndustryView({ industry }: IndustryViewProps) {
         ))}
       </div>
 
-      <div className="grid grid-cols-12 gap-6">
+      <div className="grid grid-cols-12 gap-2">
         {/* Ranking - Double Height */}
         <div 
           className="col-span-12 lg:col-span-6 bg-bg-surface p-6 rounded-2xl border border-border-base shadow-sm transition-colors"
@@ -505,7 +515,7 @@ export default function IndustryView({ industry }: IndustryViewProps) {
           <ReactECharts option={rankingOptions} style={{ height: '570px' }} />
         </div>
 
-        <div className="col-span-12 lg:col-span-6 space-y-6">
+        <div className="col-span-12 lg:col-span-6 space-y-2">
           {/* Market Share */}
           <div 
             className="bg-bg-surface p-6 rounded-2xl border border-border-base shadow-sm transition-colors"

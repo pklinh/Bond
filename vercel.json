@@ -1,9 +1,17 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "rewrites": [
+  "routes": [
     {
-      "source": "/api/fireant/:path*",
-      "destination": "/api/fireant?path=:path*"
+      "src": "/api/fireant/(.*)",
+      "dest": "/api/fireant?path=$1"
+    },
+    {
+      "src": "/api/news/(.*)",
+      "dest": "/api/news/$1"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ]
 }
